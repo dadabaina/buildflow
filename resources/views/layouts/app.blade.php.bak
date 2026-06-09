@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $title ?? 'BuildFlow' }}</title>
+    
+    {{-- Fonts --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+
+    @vite(['resources/css/app.scss', 'resources/js/app.js'])
+    @stack('styles')
+    
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="antialiased">
+<div class="layout-wrapper d-flex" x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }"
+     x-init="$watch('sidebarOpen', v => localStorage.setItem('sidebarOpen', v))">
+
+    {{-- Sidebar --}}
+    <aside class="sidebar d-flex flex-column flex-shrink-0 position-fixed"
+           :class="{ 'collapsed': !sidebarOpen }">
+
+        {{-- Brand --}}
+        <div class="sidebar-brand d-flex align-items-center gap-2 px-4 py-4">
+            <div class="bg-primary rounded-3 p-1 d-flex align-items-center justify-content-center shadow-app" style="width: 32px; height: 32px;">
+                <i class="bi bi-stack text-white fs-5"></i>
+            </div>
+            <span class="sidebar-brand-text text-dark fw-bold fs-4 tracking-tight">BuildFlow</span>
+        </div>
+
+        {{-- Navigation --}}
+        <div class="sidebar-nav flex-grow-1 overflow-y-auto py-3">
+
+            <div class="nav-section">Principal</div>
+
+            <a href="{{ route('dashboard') }}"
+               class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span class="nav-label">Tableau de bord</span>
+            </a>
+
+            <div class="nav-section">Opérations</div>
+
+            {{-- Contacts Dropdown --}}
+            <div x-data="{ open: {{ request()->routeIs('clients.*', 'suppliers.*', 'employees.*') ? 'true' : 'false' }} }" class="has-submenu">
+                <a href="javascript:void(0)" class="nav-link" :class="{ 'active': open }" @click="open = !open">
+                    <i class="bi bi-people-fill"></i>
+                    <span class="nav-label">Contacts</span>
+                    <i class="bi bi-chevron-down submenu-arrow" :style="open ? 'transform: rotate(180deg)' : ''"></i>
+                </a>
+                <ul class="nav-submenu" x-show="open" x-cloak x-transition>
+                    <li><a href="{{ route('clients.index') }}" class="submenu-link {{ request()->routeIs('clients.*') ? 'active' : '' }}">Clients</a></li>
+                    <li><a href="{{ route('suppliers.index') }}" class="submenu-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">Fournisseurs</a></li>
+                    <li><a href="{{ route('employees.index') }}" class="submenu-link {{ request()->routeIs('employees.*') ? 'active' : '' }}">Employés</a></li>
+                </ul>
+            </div>
+
+            <a href="{{ route('projects.index') }}"
+               class="nav-link {{ request()->routeIs('projects.*') ? 'active' : '' }}">
+                <i class="bi bi-building-fill"></i>
+                <span class="nav-label">Chantiers</span>
+            </a>
+
+            <a href="{{ route('expenses.index') }}"
+               class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span class="nav-label">Dépenses</span>
+            </a>
+
+            <div class="nav-section">Commercial</div>
+
+            {{-- Ventes Dropdown --}}
+            <div x-data="{ open: {{ request()->routeIs('quotes.*', 'invoices.*', 'payments.*') ? 'true' : 'false' }} }" class="has-submenu">
+                <a href="javascript:void(0)" class="nav-link" :class="{ 'active': open }" @click="open = !open">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span class="nav-label">Ventes</span>
+                    <i class="bi bi-chevron-down submenu-arrow" :style="open ? 'transform: rotate(180deg)' : ''"></i>
+                </a>
+                <ul class="nav-submenu" x-show="open" x-cloak x-transition>
+                    <li><a href="{{ route('quotes.index') }}" class="submenu-link {{ request()->routeIs('quotes.*') ? 'active' : '' }}">Devis</a></li>
+                    <li><a href="{{ route('invoices.index') }}" class="submenu-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">Factures</a></li>
+                    <li><a href="{{ route('payments.index') }}" class="submenu-link {{ request()->routeIs('payments.*') ? 'active' : '' }}">Paiements</a></li>
+                </ul>
+            </div>
+
+            @can('settings.view')
+            <div class="nav-section">Paramètres</div>
+
+            {{-- Account Settings (Sneat Style) --}}
+            <div x-data="{ open: {{ request()->routeIs('settings.*') ? 'true' : 'false' }} }" class="has-submenu">
+                <a href="javascript:void(0)" class="nav-link" :class="{ 'active': open }" @click="open = !open">
+                    <i class="bi bi-gear"></i>
+                    <span class="nav-label">Configuration</span>
+                    <i class="bi bi-chevron-down submenu-arrow" :style="open ? 'transform: rotate(180deg)' : ''"></i>
+                </a>
+                <ul class="nav-submenu" x-show="open" x-cloak x-transition>
+                    <li>
+                        <a href="{{ route('settings.index') }}#entreprise" 
+                           class="submenu-link {{ request()->fullUrlIs(route('settings.index').'#entreprise') ? 'active' : '' }}"
+                           @click="if(window.location.pathname.includes('/settings')) { $dispatch('set-tab', 'entreprise'); }">
+                           Compte Entreprise
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('settings.index') }}#regions" 
+                           class="submenu-link {{ request()->fullUrlIs(route('settings.index').'#regions') ? 'active' : '' }}"
+                           @click="if(window.location.pathname.includes('/settings')) { $dispatch('set-tab', 'regions'); }">
+                           Régions & Zones
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('settings.index') }}#metiers" 
+                           class="submenu-link {{ request()->fullUrlIs(route('settings.index').'#metiers') ? 'active' : '' }}"
+                           @click="if(window.location.pathname.includes('/settings')) { $dispatch('set-tab', 'metiers'); }">
+                           Métiers & Postes
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('settings.index') }}#unites" 
+                           class="submenu-link {{ request()->fullUrlIs(route('settings.index').'#unites') ? 'active' : '' }}"
+                           @click="if(window.location.pathname.includes('/settings')) { $dispatch('set-tab', 'unites'); }">
+                           Unités de mesure
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('settings.index') }}#categories" 
+                           class="submenu-link {{ request()->fullUrlIs(route('settings.index').'#categories') ? 'active' : '' }}"
+                           @click="if(window.location.pathname.includes('/settings')) { $dispatch('set-tab', 'categories'); }">
+                           Catégories
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <a href="{{ route('users.index') }}"
+               class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                <i class="bi bi-shield-lock"></i>
+                <span class="nav-label">Rôles & Permissions</span>
+            </a>
+            @endcan
+        </div>
+
+        {{-- Toggle --}}
+        <div class="sidebar-footer">
+            <button class="btn-toggle" @click="sidebarOpen = !sidebarOpen">
+                <i class="bi" :class="sidebarOpen ? 'bi-arrow-bar-left' : 'bi-arrow-bar-right'"></i>
+                <span x-show="sidebarOpen">Réduire le menu</span>
+            </button>
+        </div>
+    </aside>
+
+    {{-- Main area --}}
+    <div class="main-wrapper flex-grow-1"
+         :style="sidebarOpen ? 'padding-left: 260px' : 'padding-left: 80px'"
+         style="transition: padding-left 0.3s ease-in-out;">
+
+        {{-- Topbar --}}
+        <header class="topbar">
+            <button class="btn btn-icon btn-light d-md-none me-3" @click="sidebarOpen = !sidebarOpen">
+                <i class="bi bi-list"></i>
+            </button>
+            
+            <div class="flex-grow-1 d-none d-sm-block">
+                {{ $breadcrumb ?? '' }}
+            </div>
+            
+            {{-- Search placeholder like Sneat --}}
+            <div class="d-none d-lg-flex align-items-center text-muted me-auto ms-3">
+                <i class="bi bi-search me-2"></i>
+                <span style="font-size: 0.9rem;">Rechercher...</span>
+            </div>
+
+            {{-- Right Actions --}}
+            <div class="d-flex align-items-center gap-2">
+                {{-- Notifications --}}
+                <div class="dropdown" x-data="{ open: false }">
+                    <button class="btn btn-icon btn-light rounded-circle position-relative" 
+                            style="width: 38px; height: 38px;"
+                            @click="open = !open">
+                        <i class="bi bi-bell text-secondary fs-5"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white" style="font-size: 0.6rem; padding: 0.25em 0.4em;">
+                            3
+                        </span>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition x-cloak
+                         class="dropdown-menu dropdown-menu-end show border-0 shadow-app mt-2 p-0 overflow-hidden" style="width: 320px;">
+                        <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-semibold">Notifications</h6>
+                            <span class="badge bg-label-primary">3 Nouveaux</span>
+                        </div>
+                        <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                            <a href="#" class="list-group-item list-group-item-action p-3 border-bottom">
+                                <div class="d-flex gap-3">
+                                    <div class="bg-label-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 text-sm fw-semibold">Nouveau devis généré</h6>
+                                        <p class="mb-1 text-muted text-sm text-truncate" style="max-width: 200px;">Le devis #2024-001 est prêt.</p>
+                                        <small class="text-light">Il y a 2 min</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="p-2 text-center">
+                            <a href="#" class="text-sm text-primary text-decoration-none fw-semibold p-2 d-block">Tout voir</a>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- User menu --}}
+                <div class="dropdown ms-1" x-data="{ open: false }">
+                    <button class="btn p-0 border-0 d-flex align-items-center" @click="open = !open">
+                        <div class="avatar-wrapper rounded-circle overflow-hidden border border-2 border-primary-subtle p-0" style="width: 38px; height: 38px;">
+                            <img src="{{ auth()->user()->avatar_url }}"
+                                 class="w-100 h-100 object-fit-cover"
+                                 alt="{{ auth()->user()->name }}">
+                        </div>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition x-cloak
+                         class="dropdown-menu dropdown-menu-end show border-0 shadow-app mt-2" style="min-width: 230px;">
+                        <div class="px-3 py-3 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-wrapper rounded-circle overflow-hidden me-3" style="width: 40px; height: 40px;">
+                                    <img src="{{ auth()->user()->avatar_url }}" class="w-100 h-100 object-fit-cover">
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-semibold">{{ auth()->user()->name }}</h6>
+                                    <small class="text-muted">{{ auth()->user()->roles->first()?->name ?? 'Utilisateur' }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <a class="dropdown-item py-2 px-3 d-flex align-items-center" href="{{ route('profile.edit') }}">
+                            <i class="bi bi-person me-2 fs-5"></i> Mon profil
+                        </a>
+                        <a class="dropdown-item py-2 px-3 d-flex align-items-center" href="{{ route('settings.index') }}">
+                            <i class="bi bi-gear me-2 fs-5"></i> Paramètres
+                        </a>
+                        <div class="dropdown-divider mx-3"></div>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="dropdown-item py-2 px-3 text-danger d-flex align-items-center">
+                                <i class="bi bi-power me-2 fs-5"></i> Déconnexion
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        {{-- Page content --}}
+        <main class="main-content flex-grow-1 p-4" x-data="{ loading: false }" @submit.window="loading = true">
+                {{-- Contenu ici --}}
+            <div x-show="loading" x-transition.opacity class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 9999;">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                    <div class="fw-bold text-dark">Traitement en cours...</div>
+                </div>
+            </div>
+
+            {{-- Flash messages --}}
+            @if(session('success'))
+            <div class="alert alert-success border-0 shadow-sm-app d-flex align-items-center p-3 mb-4 rounded-3" role="alert">
+                <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-success">Succès !</div>
+                    <div class="text-success opacity-75">{{ session('success') }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
+            
+            @if(session('error'))
+            <div class="alert alert-danger border-0 shadow-sm-app d-flex align-items-center p-3 mb-4 rounded-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-danger"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-danger">Erreur</div>
+                    <div class="text-danger opacity-75">{{ session('error') }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
+
+            <div class="container-fluid p-0">
+                {{ $slot }}
+            </div>
+        </main>
+    </div>
+</div>
+
+@stack('scripts')
+</body>
+</html>

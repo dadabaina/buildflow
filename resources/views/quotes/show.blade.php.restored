@@ -1,0 +1,541 @@
+<x-layouts.app :title="$quote->reference">
+    <x-slot name="breadcrumb">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none opacity-50 text-dark">Accueil</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('quotes.index') }}" class="text-decoration-none opacity-50 text-dark">Devis</a></li>
+                <li class="breadcrumb-item active fw-bold text-dark">{{ $quote->reference }}</li>
+            </ol>
+        </nav>
+    </x-slot>
+
+    @php
+    $statusClasses = [
+        'brouillon' => 'badge-soft-secondary',
+        'envoye' => 'badge-soft-info',
+        'accepte' => 'badge-soft-success',
+        'refuse' => 'badge-soft-danger',
+        'expire' => 'badge-soft-warning'
+    ];
+    $badgeClass = $statusClasses[$quote->status] ?? 'badge-soft-secondary';
+    @endphp
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <h3 class="fw-bold text-dark mb-0">{{ $quote->reference }}</h3>
+                <span class="badge rounded-pill {{ $badgeClass }} px-3 py-2">
+                    {{ $quote->status_libelle }}
+                </span>
+                @if($quote->valid_until && $quote->valid_until->isPast() && !in_array($quote->status, ['accepte','refuse','annule']))
+                    <span class="badge bg-danger rounded-pill px-3 py-2">Expiré</span>
+                @endif
+            </div>
+            <p class="text-secondary mb-0 fw-medium">{{ $quote->title }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            @can('quotes.edit')
+                @if($quote->status === 'brouillon')
+                <form method="POST" action="{{ route('quotes.send', $quote) }}">
+                    @csrf
+                    <button class="btn btn-info text-white shadow-app fw-bold px-4">
+                        <i class="bi bi-send-fill me-2"></i>Envoyer
+                    </button>
+                </form>
+                <a href="{{ route('quotes.edit', $quote) }}" class="btn btn-light border shadow-sm-app fw-bold px-4">
+                    <i class="bi bi-pencil-square me-2"></i>Modifier
+                </a>
+                @endif
+                @if($quote->status === 'envoye')
+                <form method="POST" action="{{ route('quotes.accept', $quote) }}">
+                    @csrf
+                    <button class="btn btn-success shadow-app fw-bold px-4">
+                        <i class="bi bi-check-circle-fill me-2"></i>Accepter
+                    </button>
+                </form>
+                @endif
+                @if($quote->status === 'accepte')
+                <form method="POST" action="{{ route('quotes.convert', $quote) }}">
+                    @csrf
+                    <button class="btn btn-success shadow-app fw-bold px-4">
+                        <i class="bi bi-arrow-right-circle-fill me-2"></i>Facturer
+                    </button>
+                </form>
+                @endif
+            @endcan
+            <div class="dropdown">
+                <button class="btn btn-light border shadow-sm-app px-3" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-app border-0">
+                    <li><a class="dropdown-item py-2" href="#"><i class="bi bi-printer me-2 text-muted"></i> Imprimer PDF</a></li>
+                    <li><a class="dropdown-item py-2" href="#"><i class="bi bi-download me-2 text-muted"></i> Télécharger</a></li>
+                    @can('quotes.delete')
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ route('quotes.destroy', $quote) }}" onsubmit="return confirm('Supprimer ce devis ?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="dropdown-item py-2 text-danger"><i class="bi bi-trash me-2"></i> Supprimer</button>
+                        </form>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {{-- Résumé financier --}}
+        <div class="col-12">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm-app rounded-4 bg-white p-4 h-100">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">Total Hors Taxes</div>
+                        <h3 class="fw-bold text-dark mb-0">{{ number_format($quote->subtotal_ht, 0, ',', ' ') }} <small class="text-muted fw-normal fs-6">MGA</small></h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm-app rounded-4 bg-white p-4 h-100 text-center">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">TVA ({{ $quote->tva_rate }}%)</div>
+                        <h3 class="fw-bold text-dark mb-0">{{ number_format($quote->tva_amount, 0, ',', ' ') }} <small class="text-muted fw-normal fs-6">MGA</small></h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm-app rounded-4 bg-primary text-white p-4 h-100 text-end">
+                        <div class="text-white-50 small fw-bold text-uppercase mb-2">Total TTC</div>
+                        <h2 class="fw-bold mb-0">{{ number_format($quote->total_ttc, 0, ',', ' ') }} <small class="text-white-50 fw-normal fs-5">MGA</small></h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Détails --}}
+        <div class="col-lg-4">
+            <x-card title="Informations Générales" icon="bi bi-info-circle-fill">
+                <div class="list-group list-group-flush border-0">
+                    <div class="py-3 d-flex justify-content-between align-items-start border-bottom border-light">
+                        <div class="text-muted small fw-bold text-uppercase">Client</div>
+                        <div class="text-end">
+                            <a href="{{ route('clients.show', $quote->client) }}" class="text-decoration-none fw-bold text-dark d-block">
+                                {{ $quote->client?->name ?? '—' }}
+                            </a>
+                            <small class="text-muted">{{ $quote->client?->phone ?? 'Pas de contact' }}</small>
+                        </div>
+                    </div>
+                    <div class="py-3 d-flex justify-content-between border-bottom border-light">
+                        <div class="text-muted small fw-bold text-uppercase">Chantier</div>
+                        <div class="text-end fw-bold text-dark">{{ $quote->project?->name ?? 'Indépendant' }}</div>
+                    </div>
+                    <div class="py-3 d-flex justify-content-between border-bottom border-light">
+                        <div class="text-muted small fw-bold text-uppercase">Date du devis</div>
+                        <div class="text-end fw-bold text-dark">{{ $quote->quote_date?->format('d M Y') }}</div>
+                    </div>
+                    <div class="py-3 d-flex justify-content-between border-bottom border-light">
+                        <div class="text-muted small fw-bold text-uppercase">Échéance</div>
+                        <div class="text-end fw-bold {{ $quote->valid_until && $quote->valid_until->isPast() ? 'text-danger' : 'text-dark' }}">
+                            {{ $quote->valid_until?->format('d M Y') ?? 'Aucune' }}
+                        </div>
+                    </div>
+                </div>
+            </x-card>
+
+            @if($quote->notes)
+            <x-card title="Observations" icon="bi bi-chat-left-text-fill">
+                <div class="text-secondary small" style="white-space: pre-line;">{{ $quote->notes }}</div>
+            </x-card>
+            @endif
+        </div>
+
+        {{-- Lignes du devis --}}
+        <div class="col-lg-8">
+            <x-card title="Lignes du Devis" icon="bi bi-list-ul">
+                <x-slot name="headerActions">
+                    @if($quote->status === 'brouillon')
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm-app"
+                                data-bs-toggle="modal" data-bs-target="#dosageCalcModal">
+                            <i class="bi bi-calculator me-1"></i> Calculer depuis dosage
+                        </button>
+                        <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm-app" data-bs-toggle="collapse" data-bs-target="#addItemForm">
+                            <i class="bi bi-plus-lg me-1"></i> Ajouter une ligne
+                        </button>
+                    </div>
+                    @endif
+                </x-slot>
+
+                @if($quote->status === 'brouillon')
+                <div class="collapse mb-4" id="addItemForm">
+                    <div class="p-3 bg-light rounded-4 border">
+                        <form method="POST" action="{{ route('quotes.items.add', $quote) }}">
+                            @csrf
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-uppercase">Désignation / Travaux</label>
+                                    <input type="text" name="description" class="form-control" placeholder="Ex: Terrassement massif..." required>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label small fw-bold text-uppercase">Quantité</label>
+                                    <input type="number" name="quantity" class="form-control text-center" step="0.001" min="0" value="1" required>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <label class="form-label small fw-bold text-uppercase">Unité</label>
+                                    <select name="unit" class="form-select text-center">
+                                        <option value="">—</option>
+                                        @foreach($unitTypes as $ut)
+                                        <option value="{{ $ut->symbol }}">{{ $ut->symbol }} – {{ $ut->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6 col-8">
+                                    <label class="form-label small fw-bold text-uppercase">Prix Unitaire HT</label>
+                                    <div class="input-group">
+                                        <input type="number" name="unit_price" class="form-control fw-bold" step="0.01" min="0" required>
+                                        <span class="input-group-text bg-white">MGA</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                        Valider la ligne
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                @endif
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="border-0 small text-uppercase">Désignation</th>
+                                <th class="border-0 small text-uppercase text-center">Qté</th>
+                                <th class="border-0 small text-uppercase text-end">PU HT</th>
+                                <th class="border-0 small text-uppercase text-end">Total HT</th>
+                                @if($quote->status === 'brouillon')<th class="border-0"></th>@endif
+                            </tr>
+                        </thead>
+                        <tbody class="border-top-0">
+                            @forelse($quote->items as $item)
+                            <tr>
+                                <td class="fw-medium text-dark py-3">{{ $item->description }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark px-2">{{ $item->quantity }}</span>
+                                    <small class="text-muted ms-1">{{ $item->unit ?? 'u' }}</small>
+                                </td>
+                                <td class="text-end fw-medium text-muted">{{ number_format($item->unit_price, 0, ',', ' ') }}</td>
+                                <td class="text-end fw-bold text-dark">{{ number_format($item->total_ht, 0, ',', ' ') }}</td>
+                                @if($quote->status === 'brouillon')
+                                <td class="text-end">
+                                    <form method="POST" action="{{ route('quotes.items.remove', [$quote, $item]) }}" onsubmit="return confirm('Supprimer cette ligne ?')">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm-app"><i class="bi bi-x-lg"></i></button>
+                                    </form>
+                                </td>
+                                @endif
+                            </tr>
+                            @empty
+                            <tr><td colspan="5" class="text-center py-5 text-muted small">Aucun article dans ce devis.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                
+                {{-- Final Totals in Card --}}
+                <div class="p-3 bg-light rounded-bottom-4 mt-0 border-top">
+                    <div class="row g-0 justify-content-end text-end">
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">Sous-total HT:</span>
+                                <span class="fw-bold text-dark">{{ number_format($quote->subtotal_ht, 0, ',', ' ') }}</span>
+                            </div>
+                            @if($quote->discount_global > 0)
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">Remise ({{ $quote->discount_global }}%):</span>
+                                <span class="fw-bold text-danger">- {{ number_format($quote->discount_amount, 0, ',', ' ') }}</span>
+                            </div>
+                            @endif
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">TVA ({{ $quote->tva_rate }}%):</span>
+                                <span class="fw-bold text-dark">{{ number_format($quote->tva_amount, 0, ',', ' ') }}</span>
+                            </div>
+                            <hr class="my-2 border-secondary opacity-25">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold text-dark">TOTAL TTC:</span>
+                                <span class="fw-bold fs-5 text-primary">{{ number_format($quote->total_ttc, 0, ',', ' ') }} MGA</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </x-card>
+        </div>
+    </div>
+
+@if($quote->status === 'brouillon')
+{{-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL — Calculer depuis dosage DBE
+═══════════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="dosageCalcModal" tabindex="-1" aria-labelledby="dosageCalcModalLabel" aria-hidden="true"
+     x-data="dosageCalc()">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0 rounded-top-3">
+                <h5 class="modal-title fw-bold" id="dosageCalcModalLabel">
+                    <i class="bi bi-calculator me-2"></i>Calculer depuis un modèle de dosage
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+
+                {{-- ÉTAPE 1 : Paramètres --}}
+                <div x-show="step === 1">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Modèle de dosage <span class="text-danger">*</span></label>
+                            <select x-model="form.dosage_model_id" class="form-select" required>
+                                <option value="">— Sélectionner un modèle —</option>
+                                @forelse($dosageModels as $dm)
+                                <option value="{{ $dm->id }}" data-unit="{{ $dm->output_unit }}" data-name="{{ $dm->name }}">
+                                    {{ $dm->name }} ({{ $dm->output_unit }})
+                                </option>
+                                @empty
+                                <option disabled>Aucun modèle de dosage disponible</option>
+                                @endforelse
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Quantité <span class="text-danger">*</span></label>
+                            <input type="number" x-model.number="form.quantity" class="form-control" step="0.001" min="0.001" value="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Description de la ligne</label>
+                            <input type="text" x-model="form.description" class="form-control" placeholder="Auto-remplie si vide">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Unité</label>
+                            <select x-model="form.unit" class="form-select">
+                                <option value="">— Auto (dosage) —</option>
+                                @foreach($unitTypes as $ut)
+                                <option value="{{ $ut->symbol }}">{{ $ut->symbol }} – {{ $ut->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1"><p class="text-muted small mb-2 fw-bold">Coefficients (optionnels — valeurs de l'entreprise par défaut)</p></div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Frais généraux (%)</label>
+                            <input type="number" x-model.number="form.fg_rate" class="form-control form-control-sm" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Marge (%)</label>
+                            <input type="number" x-model.number="form.margin_rate" class="form-control form-control-sm" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Aléas (%)</label>
+                            <input type="number" x-model.number="form.alea_rate" class="form-control form-control-sm" step="0.01" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div x-show="error" class="alert alert-danger mt-3 mb-0 py-2 small" x-text="error"></div>
+                </div>
+
+                {{-- ÉTAPE 2 : Résultats DBE --}}
+                <div x-show="step === 2">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-light text-center p-3 rounded-3">
+                                <div class="text-muted small text-uppercase fw-bold mb-1">Matériaux</div>
+                                <div class="fw-bold fs-6" x-text="fmt(result.dbe_materials)"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-light text-center p-3 rounded-3">
+                                <div class="text-muted small text-uppercase fw-bold mb-1">Main d'œuvre</div>
+                                <div class="fw-bold fs-6" x-text="fmt(result.dbe_labor)"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-light text-center p-3 rounded-3">
+                                <div class="text-muted small text-uppercase fw-bold mb-1">Matériels</div>
+                                <div class="fw-bold fs-6" x-text="fmt(result.dbe_equipment)"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 bg-primary text-white text-center p-3 rounded-3">
+                                <div class="text-white-50 small text-uppercase fw-bold mb-1">DBE Total</div>
+                                <div class="fw-bold fs-6" x-text="fmt(result.dbe_total)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0 small">Type</th>
+                                    <th class="border-0 small">Ressource</th>
+                                    <th class="border-0 small text-end">Qté</th>
+                                    <th class="border-0 small">Unité</th>
+                                    <th class="border-0 small text-end">P.U.</th>
+                                    <th class="border-0 small text-end">Montant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(row, i) in result.breakdown" :key="i">
+                                    <tr>
+                                        <td><span class="badge rounded-pill"
+                                                  :class="{'bg-info text-dark': row.item_type==='material', 'bg-warning text-dark': row.item_type==='labor', 'bg-secondary': row.item_type==='equipment', 'bg-primary': row.item_type==='subcontract'}"
+                                                  x-text="typeLabel(row.item_type)"></span></td>
+                                        <td class="small" x-text="row.description"></td>
+                                        <td class="text-end small" x-text="row.total_quantity"></td>
+                                        <td class="small" x-text="row.unit"></td>
+                                        <td class="text-end small" x-text="row.unit_price !== null ? fmt(row.unit_price) : '—'"></td>
+                                        <td class="text-end small fw-medium" :class="{'text-danger': !row.has_price}" x-text="fmt(row.line_cost)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div x-show="result.missing_prices && result.missing_prices.length > 0"
+                         class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <strong>Prix manquants :</strong>
+                        <span x-text="result.missing_prices.join(', ')"></span>
+                    </div>
+
+                    <div class="card border-primary border-2 rounded-3 p-3">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-3 text-center">
+                                <div class="text-muted small text-uppercase">P.U. DBE</div>
+                                <div class="fw-bold text-dark" x-text="fmt(result.dbe_unit)"></div>
+                            </div>
+                            <div class="col-md-1 text-center text-muted">×</div>
+                            <div class="col-md-3 text-center">
+                                <div class="text-muted small text-uppercase">Coeff. K</div>
+                                <div class="fw-bold text-dark" x-text="result.coefficient"></div>
+                            </div>
+                            <div class="col-md-1 text-center text-muted">=</div>
+                            <div class="col-md-4 text-center">
+                                <div class="text-muted small text-uppercase">Prix de vente U.</div>
+                                <div class="fw-bold fs-5 text-primary" x-text="fmt(result.unit_price)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label fw-medium small">Prix unitaire à appliquer (modifiable)</label>
+                        <div class="input-group">
+                            <input type="number" x-model.number="result.unit_price" class="form-control fw-bold" step="0.01" min="0">
+                            <span class="input-group-text bg-white">MGA</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer border-0 bg-light rounded-bottom-3">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-outline-secondary" x-show="step === 2" @click="step = 1">
+                    <i class="bi bi-arrow-left me-1"></i>Recalculer
+                </button>
+                <button type="button" class="btn btn-primary fw-bold" x-show="step === 1"
+                        :disabled="loading || !form.dosage_model_id || form.quantity <= 0"
+                        @click="calculate()">
+                    <template x-if="loading"><span class="spinner-border spinner-border-sm me-2" role="status"></span></template>
+                    <i class="bi bi-calculator me-1" x-show="!loading"></i>
+                    Calculer
+                </button>
+                <button type="button" class="btn btn-success fw-bold" x-show="step === 2" @click="applyToQuote()">
+                    <i class="bi bi-check-lg me-1"></i>Ajouter au devis
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Formulaire caché pour soumettre la ligne via POST standard --}}
+<form id="dosageLineForm" method="POST" action="{{ route('quotes.items.add', $quote) }}" style="display:none">
+    @csrf
+    <input type="hidden" name="description" id="dbl_description">
+    <input type="hidden" name="quantity"    id="dbl_quantity">
+    <input type="hidden" name="unit"        id="dbl_unit">
+    <input type="hidden" name="unit_price"  id="dbl_unit_price">
+</form>
+
+@push('scripts')
+<script>
+function dosageCalc() {
+    return {
+        step:    1,
+        loading: false,
+        error:   null,
+        form: {
+            dosage_model_id: '',
+            quantity:     1,
+            description:  '',
+            unit:         '',
+            fg_rate:      {{ (float)($company->fg_rate ?? 0) }},
+            margin_rate:  {{ (float)($company->marge_rate ?? 0) }},
+            alea_rate:    {{ (float)($company->aleas_rate ?? 0) }},
+        },
+        result: {},
+
+        calculate() {
+            this.error   = null;
+            this.loading = true;
+
+            fetch('{{ route('dosage.calculate') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    dosage_model_id: this.form.dosage_model_id,
+                    quantity:        this.form.quantity,
+                    fg_rate:         this.form.fg_rate,
+                    margin_rate:     this.form.margin_rate,
+                    alea_rate:       this.form.alea_rate,
+                }),
+            })
+            .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+            .then(data => {
+                this.result = data;
+                // Auto-remplir description si vide
+                if (!this.form.description) {
+                    this.form.description = data.dosage_model?.name ?? '';
+                }
+                // Auto-remplir unité si vide
+                if (!this.form.unit) {
+                    this.form.unit = data.dosage_model?.output_unit ?? '';
+                }
+                this.step = 2;
+            })
+            .catch(err => {
+                this.error = err?.message ?? 'Erreur lors du calcul. Vérifiez les données.';
+            })
+            .finally(() => { this.loading = false; });
+        },
+
+        applyToQuote() {
+            document.getElementById('dbl_description').value = this.form.description;
+            document.getElementById('dbl_quantity').value    = this.form.quantity;
+            document.getElementById('dbl_unit').value        = this.form.unit;
+            document.getElementById('dbl_unit_price').value  = this.result.unit_price;
+            document.getElementById('dosageLineForm').submit();
+        },
+
+        fmt(val) {
+            if (val === undefined || val === null) return '0';
+            return Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' Ar';
+        },
+        typeLabel(t) {
+            return { material: 'Mat.', labor: 'MO', equipment: 'Matl.', subcontract: 'ST' }[t] ?? t;
+        },
+    };
+}
+</script>
+@endpush
+@endif
+</x-layouts.app>
