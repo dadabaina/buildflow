@@ -96,7 +96,7 @@
             {{-- Quick Stats Summary --}}
             <div class="bg-white p-4 border-top border-light">
                 <div class="row g-4">
-                    <div class="col-6 col-md-3 border-end border-light">
+                    <div class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-wallet2 fs-5"></i>
@@ -107,7 +107,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3 border-end border-light">
+                    <div class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-danger-subtle text-danger rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-cash-stack fs-5"></i>
@@ -119,7 +119,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3 border-end border-light">
+                    <div class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-success-subtle text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-graph-up-arrow fs-5"></i>
@@ -138,15 +138,37 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-info-subtle text-info rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-piggy-bank fs-5"></i>
                             </div>
                             <div>
-                                <div class="text-muted small fw-medium text-uppercase">Marge prév.</div>
+                                <div class="text-muted small fw-medium text-uppercase">
+                                    Marge prév.
+                                    <i class="bi bi-info-circle ms-1" style="cursor: help;"
+                                       data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="Part du Budget initial qui n'est pas encore consommée par les dépenses : (Budget initial − Total Dépenses) / Budget initial. Un chiffre négatif signifie que le budget prévu est dépassé."></i>
+                                </div>
                                 @php $marginPercent = $project->budget > 0 ? (($project->budget - $totalExpenses) / $project->budget) * 100 : 0; @endphp
                                 <div class="fw-bold text-dark fs-5">{{ number_format($marginPercent, 1) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md">
+                        <div class="d-flex align-items-center gap-3">
+                            @php $marketRatio = $project->total_market_amount > 0 ? ($totalExpenses / $project->total_market_amount) * 100 : 0; @endphp
+                            <div class="bg-{{ $marketRatio > 100 ? 'danger' : 'warning' }}-subtle text-{{ $marketRatio > 100 ? 'danger' : 'warning' }} rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <i class="bi bi-percent fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small fw-medium text-uppercase">
+                                    Dépenses / Marché
+                                    <i class="bi bi-info-circle ms-1" style="cursor: help;"
+                                       data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="Part du Montant Total Marché (ce que le client doit payer) déjà consommée par les dépenses réelles : Total Dépenses / Montant Total Marché. Au-delà de 100%, les dépenses dépassent le montant du marché."></i>
+                                </div>
+                                <div class="fw-bold fs-5 text-{{ $marketRatio > 100 ? 'danger' : 'dark' }}">{{ number_format($marketRatio, 1) }}%</div>
                             </div>
                         </div>
                     </div>
