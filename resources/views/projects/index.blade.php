@@ -21,7 +21,7 @@
                         </div>
                         <div>
                             @can('projects.create')
-                            <a href="{{ route('projects.create') }}" class="btn btn-primary shadow-sm px-4">
+                            <a href="{{ route('projects.create') }}" id="tour-projects-new" class="btn btn-primary shadow-sm px-4">
                                 <i class="bx bx-plus me-1"></i>Nouveau chantier
                             </a>
                             @endcan
@@ -126,7 +126,7 @@
         
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table id="tour-projects-table" class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-4 py-3 border-0 small text-uppercase text-muted">Chantier & Réf</th>

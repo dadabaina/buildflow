@@ -21,7 +21,7 @@
                         </div>
                         <div>
                             @can('clients.create')
-                            <button type="button" class="btn btn-primary shadow-sm px-4" onclick="clientModalCreate()">
+                            <button type="button" id="tour-clients-new" class="btn btn-primary shadow-sm px-4" onclick="clientModalCreate()">
                                 <i class="bx bx-user-plus me-1"></i>Nouveau client
                             </button>
                             @endcan
@@ -145,7 +145,7 @@
         
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table id="tour-clients-table" class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-4 py-3 border-0 small text-uppercase text-muted">Client</th>

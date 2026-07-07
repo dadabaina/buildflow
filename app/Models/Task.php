@@ -12,9 +12,9 @@ class Task extends Model
     use HasFactory, SoftDeletes, BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'project_id', 'created_by',
+        'company_id', 'project_id', 'quote_item_id', 'created_by',
         'title', 'description', 'status', 'priority', 'weight',
-        'due_date', 'checklist',
+        'due_date', 'checklist', 'sort_order',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class Task extends Model
     public function company()   { return $this->belongsTo(Company::class); }
     public function project()   { return $this->belongsTo(Project::class); }
     public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
+    public function quoteItem() { return $this->belongsTo(QuoteItem::class); }
 
     public function employees()
     {
@@ -34,6 +35,27 @@ class Task extends Model
     public function comments()
     {
         return $this->hasMany(TaskComment::class)->latest();
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function getTotalExpensesAttribute(): float
+    {
+        return (float) $this->expenses()->where('status', 'validee')->sum('total_amount');
+    }
+
+    /**
+     * Budget prévu de la tâche : déboursé sec (DBE) de la ligne de devis d'origine,
+     * ou null si la tâche ne vient pas d'un devis ou si la ligne n'a pas de sous-détail.
+     */
+    public function getPlannedBudgetAttribute(): ?float
+    {
+        $dbe = $this->quoteItem?->dbe_total;
+
+        return $dbe > 0 ? (float) $dbe : null;
     }
 
     public function getStatusLibelleAttribute(): string

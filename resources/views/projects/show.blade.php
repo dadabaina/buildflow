@@ -22,7 +22,7 @@
     @endphp
 
     {{-- Hero Section --}}
-    <div class="card border-0 shadow-sm-app rounded-4 mb-4 overflow-hidden">
+    <div id="tour-project-header" class="card border-0 shadow-sm-app rounded-4 mb-4 overflow-hidden">
         <div class="card-body p-0">
             <div class="p-4 p-md-5 position-relative" style="background: linear-gradient(135deg, #1e2a35 0%, #2c3e50 100%); color: white;">
                 <div class="position-relative z-index-1">
@@ -96,7 +96,7 @@
             {{-- Quick Stats Summary --}}
             <div class="bg-white p-4 border-top border-light">
                 <div class="row g-4">
-                    <div class="col-6 col-md border-end border-light">
+                    <div id="tour-project-budget" class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-wallet2 fs-5"></i>
@@ -107,7 +107,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md border-end border-light">
+                    <div id="tour-project-expenses-stat" class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-danger-subtle text-danger rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-cash-stack fs-5"></i>
@@ -138,7 +138,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md border-end border-light">
+                    <div id="tour-project-margin" class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-info-subtle text-info rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-piggy-bank fs-5"></i>
@@ -155,7 +155,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md">
+                    <div id="tour-project-market-ratio" class="col-6 col-md">
                         <div class="d-flex align-items-center gap-3">
                             @php $marketRatio = $project->total_market_amount > 0 ? ($totalExpenses / $project->total_market_amount) * 100 : 0; @endphp
                             <div class="bg-{{ $marketRatio > 100 ? 'danger' : 'warning' }}-subtle text-{{ $marketRatio > 100 ? 'danger' : 'warning' }} rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
@@ -178,10 +178,10 @@
     </div>
 
     {{-- Main Content & Tabs --}}
-    <div x-data="{ activeTab: 'infos' }">
+    <div x-data="{ activeTab: 'infos', expenseTaskFilter: '' }">
         <div class="card border-0 shadow-sm-app rounded-4 mb-4 bg-white">
             <div class="card-body p-2">
-                <ul class="nav nav-pills nav-justified gap-1 flex-wrap project-nav-tabs">
+                <ul id="tour-project-tabs" class="nav nav-pills nav-justified gap-1 flex-wrap project-nav-tabs">
                     <li class="nav-item">
                         <button class="nav-link rounded-3 py-2 px-3 d-flex align-items-center justify-content-center gap-2" :class="{ 'active shadow-sm': activeTab === 'infos' }" @click="activeTab = 'infos'">
                             <i class="bi bi-info-circle"></i> <span>Vue d'ensemble</span>
@@ -336,6 +336,8 @@
                                                     'employee_removed' => 'bi-person-dash',
                                                     'equipment_assigned' => 'bi-truck',
                                                     'equipment_removed' => 'bi-box-arrow-right',
+                                                    'expense_template_applied' => 'bi-receipt-cutoff',
+                                                    'quote_invoiced' => 'bi-file-earmark-check',
                                                     default => 'bi-info-circle'
                                                 } }} small" style="font-size: 0.8rem;"></i>
                                             </div>
@@ -515,6 +517,13 @@
             <div x-show="activeTab === 'expenses'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">
                 <x-card title="Journal des dépenses" icon="bi bi-receipt">
                     <x-slot name="headerActions">
+                        <select x-model="expenseTaskFilter" class="form-select form-select-sm me-2" style="width: auto; display: inline-block;">
+                            <option value="">Toutes les tâches</option>
+                            <option value="none">— Dépenses générales —</option>
+                            @foreach($project->tasks as $t)
+                            <option value="{{ $t->id }}">{{ Str::limit($t->title, 40) }}</option>
+                            @endforeach
+                        </select>
                         @can('expenses.create')
                         <a href="{{ route('expenses.create', ['project_id' => $project->id]) }}" class="btn btn-primary shadow-app">
                             <i class="bi bi-plus-lg me-1"></i> Ajouter une dépense
@@ -526,6 +535,7 @@
                             <thead>
                                 <tr>
                                     <th class="border-0">Description</th>
+                                    <th class="border-0">Tâche</th>
                                     <th class="border-0 text-center">Catégorie</th>
                                     <th class="border-0 text-end">Montant</th>
                                     <th class="border-0 text-center">Date</th>
@@ -535,28 +545,27 @@
                             </thead>
                             <tbody>
                                 @forelse($project->expenses as $exp)
-                                <tr>
+                                <tr x-show="expenseTaskFilter === '' || expenseTaskFilter === '{{ $exp->task_id ?? 'none' }}'">
                                     <td><a href="{{ route('expenses.show', $exp) }}" class="text-decoration-none fw-bold text-dark">{{ Str::limit($exp->description, 50) }}</a></td>
+                                    <td class="small">
+                                        @if($exp->task)
+                                        <a href="{{ route('tasks.show', $exp->task) }}" class="text-decoration-none">{{ Str::limit($exp->task->title, 30) }}</a>
+                                        @else
+                                        <span class="text-muted">— Générale —</span>
+                                        @endif
+                                    </td>
                                     <td class="text-center"><span class="badge bg-light text-muted border px-2 py-1">{{ $exp->expenseCategory?->name ?? '—' }}</span></td>
                                     <td class="text-end fw-bold text-danger">{{ number_format($exp->total_amount, 0, ',', ' ') }} <small>MGA</small></td>
                                     <td class="text-center small text-muted">{{ $exp->expense_date?->format('d/m/Y') }}</td>
                                     <td class="text-center">
-                                        @php 
-                                            $esc = [
-                                                'pending' => 'badge-soft-warning', 
-                                                'validated' => 'badge-soft-success', 
-                                                'rejected' => 'badge-soft-danger',
-                                                'saisie' => 'badge-soft-secondary'
-                                            ]; 
-                                        @endphp
-                                        <span class="badge rounded-pill {{ $esc[$exp->status] ?? 'badge-soft-secondary' }} px-3 py-1">{{ ucfirst($exp->status) }}</span>
+                                        <span class="badge rounded-pill {{ $exp->status_badge_class }} px-3 py-1">{{ $exp->status_libelle }}</span>
                                     </td>
                                     <td class="text-end">
                                         <a href="{{ route('expenses.show', $exp) }}" class="btn-action-view"><i class="bi bi-eye"></i></a>
                                     </td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="6" class="text-center py-5 text-muted">Aucune dépense enregistrée.</td></tr>
+                                <tr><td colspan="7" class="text-center py-5 text-muted">Aucune dépense enregistrée.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -648,6 +657,8 @@
                                     <th class="border-0">Tâche</th>
                                     <th class="border-0">Priorité</th>
                                     <th class="border-0">Progression</th>
+                                    <th class="border-0 text-end" title="Déboursé sec (DBE) de la ligne de devis d'origine">Prévu (DBE)</th>
+                                    <th class="border-0 text-end">Dépenses</th>
                                     <th class="border-0">Échéance</th>
                                     <th class="border-0">Statut</th>
                                 </tr>
@@ -672,11 +683,28 @@
                                             <span class="small fw-bold text-muted">{{ $task->progress_percent }}%</span>
                                         </div>
                                     </td>
+                                    <td class="text-end">
+                                        @if($task->planned_budget !== null)
+                                            <span class="small fw-medium {{ ($task->validated_expenses_total ?? 0) > $task->planned_budget ? 'text-danger' : 'text-muted' }}"
+                                                  title="{{ ($task->validated_expenses_total ?? 0) > $task->planned_budget ? 'Dépenses validées supérieures au déboursé prévu' : 'Déboursé sec prévu au devis' }}">
+                                                {{ number_format($task->planned_budget, 0, ',', ' ') }} MGA
+                                            </span>
+                                        @else
+                                            <span class="small text-muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="#" @click.prevent="activeTab = 'expenses'; expenseTaskFilter = '{{ $task->id }}'"
+                                           class="text-decoration-none small fw-bold {{ ($task->validated_expenses_total ?? 0) > 0 ? 'text-dark' : 'text-muted' }}"
+                                           title="Voir les dépenses de cette tâche">
+                                            {{ number_format($task->validated_expenses_total ?? 0, 0, ',', ' ') }} MGA
+                                        </a>
+                                    </td>
                                     <td class="text-muted small {{ $task->isOverdue() ? 'text-danger fw-bold' : '' }}">{{ $task->due_date?->format('d/m/Y') ?? '—' }}</td>
                                     <td><span class="badge {{ $task->status_badge_class }} px-2 py-1 rounded-pill" style="font-size:0.7rem">{{ $task->status_libelle }}</span></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="5" class="text-center py-5 text-muted">Aucune tâche.</td></tr>
+                                <tr><td colspan="7" class="text-center py-5 text-muted">Aucune tâche.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

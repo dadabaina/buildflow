@@ -56,6 +56,20 @@ class PaymentController extends Controller
         $company = Auth::user()->company;
         $invoice = $company->invoices()->findOrFail($request->invoice_id);
 
+        if (! in_array($invoice->status, ['envoye', 'partiellement_payee'])) {
+            return back()->withInput()
+                ->with('error', "La facture {$invoice->reference} ({$invoice->status_libelle}) ne peut pas recevoir de paiement. Seule une facture envoyée ou partiellement payée est payable.");
+        }
+
+        if ((float) $request->amount > (float) $invoice->amount_remaining + 0.009) {
+            return back()->withInput()
+                ->with('error', sprintf(
+                    'Le montant saisi (%s Ar) dépasse le reste à payer de la facture (%s Ar).',
+                    number_format((float) $request->amount, 0, ',', ' '),
+                    number_format((float) $invoice->amount_remaining, 0, ',', ' ')
+                ));
+        }
+
         // Create the Payment record with all required fields
         $payment = $company->payments()->create([
             'project_id'   => $invoice->project_id,
@@ -95,10 +109,10 @@ class PaymentController extends Controller
     public function destroy(Payment $payment)
     {
         abort_if($payment->company_id !== Auth::user()->company_id, 403);
-        $invoice = $payment->invoices()->first();
+        $invoices = $payment->invoices()->get();
         $payment->delete();
 
-        if ($invoice) {
+        foreach ($invoices as $invoice) {
             $invoice->updatePaymentStatus();
         }
 

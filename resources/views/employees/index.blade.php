@@ -21,7 +21,7 @@
                         </div>
                         <div>
                             @can('employees.create')
-                            <button type="button" class="btn btn-primary shadow-sm px-4" onclick="empModalCreate()">
+                            <button type="button" id="tour-employees-new" class="btn btn-primary shadow-sm px-4" onclick="empModalCreate()">
                                 <i class="bx bx-user-plus me-1"></i>Nouvel employé
                             </button>
                             @endcan
@@ -130,7 +130,7 @@
         
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table id="tour-employees-table" class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-4 py-3 border-0 small text-uppercase text-muted">Collaborateur</th>

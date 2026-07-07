@@ -32,7 +32,7 @@
 
                             <div class="col-md-6">
                                 <label class="form-label">Chantier <span class="text-danger">*</span></label>
-                                <select name="project_id" class="form-select @error('project_id') is-invalid @enderror" required>
+                                <select name="project_id" id="project_id" class="form-select @error('project_id') is-invalid @enderror" required>
                                     <option value="">Sélectionner...</option>
                                     @foreach($projects as $proj)
                                     <option value="{{ $proj->id }}"
@@ -42,6 +42,21 @@
                                     @endforeach
                                 </select>
                                 @error('project_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Tâche <span class="text-muted small">(optionnel)</span></label>
+                                <select name="task_id" id="task_id" class="form-select @error('task_id') is-invalid @enderror">
+                                    <option value="">— Dépense générale du chantier —</option>
+                                    @foreach($tasks as $t)
+                                    <option value="{{ $t->id }}" data-project="{{ $t->project_id }}"
+                                        {{ old('task_id', request('task_id', $expense->task_id ?? '')) == $t->id ? 'selected' : '' }}>
+                                        {{ $t->title }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">Précise à quelle tâche du chantier cette dépense se rattache.</div>
+                                @error('task_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="col-md-6">
@@ -149,4 +164,27 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const projectSelect = document.getElementById('project_id');
+            const taskSelect = document.getElementById('task_id');
+
+            function filterTasks() {
+                const pid = projectSelect.value;
+                Array.from(taskSelect.options).forEach(function (opt) {
+                    if (!opt.value) return;
+                    opt.hidden = !!pid && opt.dataset.project !== pid;
+                });
+                if (taskSelect.value && taskSelect.selectedOptions[0]?.hidden) {
+                    taskSelect.value = '';
+                }
+            }
+
+            projectSelect.addEventListener('change', filterTasks);
+            filterTasks();
+        });
+    </script>
+    @endpush
 </x-layouts.app>

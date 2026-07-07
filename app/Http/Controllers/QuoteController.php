@@ -69,15 +69,12 @@ class QuoteController extends Controller
         ]);
 
         $company = Auth::user()->company;
-        $prefix  = $company->quote_prefix ?? 'DEV';
-        $lastNum = $company->quotes()->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
-        $reference = $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
 
-        $quote = $company->quotes()->create([
+        $quote = DB::transaction(fn () => $company->quotes()->create([
+            'reference'       => $company->nextQuoteReference(),
             'project_id'      => $request->project_id,
             'client_id'       => $request->client_id,
             'created_by'      => Auth::id(),
-            'reference'       => $reference,
             'title'           => $request->title,
             'quote_date'      => $request->quote_date,
             'valid_until'     => $request->valid_until,
@@ -92,7 +89,7 @@ class QuoteController extends Controller
             'taxable_ht'      => 0,
             'tva_amount'      => 0,
             'total_ttc'       => 0,
-        ]);
+        ]));
 
         return redirect()->route('quotes.show', $quote)
             ->with('success', 'Devis créé. Ajoutez maintenant les lignes.');
@@ -183,35 +180,7 @@ class QuoteController extends Controller
         if (in_array($quote->status, ['brouillon', 'envoye'])) {
             DB::transaction(function () use ($quote) {
                 $quote->update(['status' => 'accepte']);
-
-                // Naissance du chantier si non lié
-                if (!$quote->project_id) {
-                    $project = Project::create([
-                        'company_id'      => $quote->company_id,
-                        'client_id'       => $quote->client_id,
-                        'name'            => $quote->title,
-                        'contract_amount' => $quote->total_ttc,
-                        'budget_total'    => $quote->items->sum('dbe_total'),
-                        'tva_rate'        => $quote->tva_rate,
-                        'status'          => 'en_cours',
-                        'start_date'      => now(),
-                    ]);
-
-                    $quote->setRelation('project', $project);
-                    $quote->update(['project_id' => $project->id]);
-                } else {
-                    // Si déjà lié, on s'assure que le projet passe en cours
-                    $quote->project->update(['status' => 'en_cours']);
-                }
-
-                // Génération automatique des tâches
-                $this->performTaskGeneration($quote);
-
-                \App\Models\ProjectLog::log(
-                    $quote->project_id,
-                    'quote_accepted',
-                    "Le devis {$quote->reference} a été accepté. Le chantier a été activé et les tâches générées."
-                );
+                $this->activateAcceptedQuote($quote);
             });
         }
 
@@ -220,7 +189,102 @@ class QuoteController extends Controller
 
     public function convertToInvoice(Quote $quote)
     {
-        // ... (existing code)
+        $this->authorizeQuote($quote);
+
+        if ($quote->status !== 'accepte') {
+            return back()->with('error', 'Seul un devis accepté peut être converti en facture.');
+        }
+
+        if (!$quote->project_id) {
+            return back()->with('error', 'Ce devis n\'est lié à aucun chantier.');
+        }
+
+        if (Invoice::where('quote_id', $quote->id)->exists()) {
+            return back()->with('error', 'Ce devis a déjà été converti en facture.');
+        }
+
+        $quote->load(['items', 'project']);
+
+        // Garde anti-dépassement du marché : conversion directe + situations de
+        // travaux ne doivent pas facturer plus que le montant contractuel.
+        $contractAmount  = (float) $quote->project->contract_amount;
+        $alreadyInvoiced = (float) Invoice::where('project_id', $quote->project_id)
+            ->where('status', '!=', 'annulee')
+            ->sum('total_ttc');
+
+        if ($contractAmount > 0 && $alreadyInvoiced + (float) $quote->total_ttc > $contractAmount + 0.01) {
+            return back()->with('error', sprintf(
+                'Conversion impossible : %s Ar déjà facturés sur ce chantier (situations comprises), facturer ce devis (%s Ar) dépasserait le montant du marché (%s Ar).',
+                number_format($alreadyInvoiced, 0, ',', ' '),
+                number_format((float) $quote->total_ttc, 0, ',', ' '),
+                number_format($contractAmount, 0, ',', ' ')
+            ));
+        }
+
+        return DB::transaction(function () use ($quote) {
+            $company = Auth::user()->company;
+
+            $rgRate   = (float) ($quote->project->rg_rate ?? 0);
+            $rgAmount = round((float) $quote->total_ttc * $rgRate / 100, 2);
+            $netToPay = $quote->total_ttc - $rgAmount;
+
+            $invoice = $company->invoices()->create([
+                'project_id'       => $quote->project_id,
+                'client_id'        => $quote->client_id,
+                'quote_id'         => $quote->id,
+                'created_by'       => Auth::id(),
+                'reference'        => $company->nextInvoiceReference(),
+                'title'            => $quote->title,
+                'type'             => 'standard',
+                'invoice_date'     => now(),
+                'due_date'         => now()->addDays(30),
+                'tva_rate'         => $quote->tva_rate,
+                'rg_rate'          => $rgRate,
+                'subtotal_ht'      => $quote->taxable_ht,
+                'tva_amount'       => $quote->tva_amount,
+                'total_ttc'        => $quote->total_ttc,
+                'rg_amount'        => $rgAmount,
+                'net_to_pay'       => $netToPay,
+                'amount_paid'      => 0,
+                'amount_remaining' => $netToPay,
+                'status'           => 'brouillon',
+            ]);
+
+            foreach ($quote->items as $item) {
+                $invoice->items()->create([
+                    'description' => $item->description,
+                    'unit'        => $item->unit,
+                    'quantity'    => $item->quantity,
+                    'unit_price'  => $item->unit_price,
+                    'total_ht'    => $item->total_ht,
+                    'sort_order'  => $item->sort_order,
+                ]);
+            }
+
+            // La remise globale du devis devient une ligne négative : la somme des
+            // lignes reste égale au sous-total HT de l'en-tête (taxable_ht), même
+            // après un recalcul de la facture.
+            if ((float) $quote->discount_amount > 0) {
+                $invoice->items()->create([
+                    'description' => $quote->discount_type === 'percent'
+                        ? "Remise globale ({$quote->discount_global}%)"
+                        : 'Remise globale',
+                    'quantity'    => 1,
+                    'unit_price'  => -$quote->discount_amount,
+                    'total_ht'    => -$quote->discount_amount,
+                    'sort_order'  => ((int) $quote->items->max('sort_order')) + 1,
+                ]);
+            }
+
+            \App\Models\ProjectLog::log(
+                $quote->project_id,
+                'quote_invoiced',
+                "Le devis {$quote->reference} a été converti en facture {$invoice->reference}."
+            );
+
+            return redirect()->route('invoices.show', $invoice)
+                ->with('success', 'Facture générée depuis le devis.');
+        });
     }
 
     public function generateTasks(Quote $quote)
@@ -242,6 +306,63 @@ class QuoteController extends Controller
     }
 
     /**
+     * Activation d'un devis accepté : naissance du chantier s'il n'existe pas
+     * (montants initialisés depuis le devis), sinon cumul des montants du devis
+     * au marché existant, puis génération des tâches. Appelé par accept() et
+     * publicValidate(), toujours dans une transaction.
+     */
+    private function activateAcceptedQuote(Quote $quote, bool $viaPublicPortal = false): void
+    {
+        $quote->loadMissing('items');
+        $dbeTotal = (float) $quote->items->sum('dbe_total');
+
+        if (!$quote->project_id) {
+            $project = Project::create([
+                'company_id'      => $quote->company_id,
+                'client_id'       => $quote->client_id,
+                'name'            => $quote->title,
+                'contract_amount' => $quote->total_ttc,
+                'budget_total'    => $dbeTotal,
+                'tva_rate'        => $quote->tva_rate,
+                'status'          => 'en_cours',
+                'start_date'      => now(),
+            ]);
+
+            $quote->setRelation('project', $project);
+            $quote->update(['project_id' => $project->id]);
+
+            $detail = 'Le chantier a été créé et activé';
+        } else {
+            // Chantier existant : le devis accepté s'ajoute au marché en cours
+            $project     = $quote->project;
+            $oldContract = (float) $project->contract_amount;
+            $newContract = $oldContract + (float) $quote->total_ttc;
+
+            $project->update([
+                'status'          => 'en_cours',
+                'contract_amount' => $newContract,
+                'budget_total'    => (float) $project->budget_total + $dbeTotal,
+            ]);
+
+            $detail = sprintf(
+                'Montant du marché porté de %s à %s Ar',
+                number_format($oldContract, 0, ',', ' '),
+                number_format($newContract, 0, ',', ' ')
+            );
+        }
+
+        $this->performTaskGeneration($quote);
+
+        \App\Models\ProjectLog::log(
+            $quote->project_id,
+            'quote_accepted',
+            $viaPublicPortal
+                ? "Le client a accepté le devis {$quote->reference} via le portail public. {$detail}, tâches générées."
+                : "Le devis {$quote->reference} a été accepté. {$detail}, tâches générées."
+        );
+    }
+
+    /**
      * Logique interne de génération des tâches à partir des lignes du devis.
      */
     private function performTaskGeneration(Quote $quote): int
@@ -251,19 +372,26 @@ class QuoteController extends Controller
 
         $count = 0;
         foreach ($quote->items as $item) {
-            // Éviter les doublons basés sur le titre
-            $exists = $project->tasks()->where('title', $item->description)->exists();
+            // Éviter les doublons : une seule tâche par ligne de devis.
+            // Le test sur le titre couvre les tâches créées avant l'existence de quote_item_id.
+            $exists = $project->tasks()
+                ->where(function ($q) use ($item) {
+                    $q->where('quote_item_id', $item->id)
+                      ->orWhere(fn ($q2) => $q2->whereNull('quote_item_id')->where('title', $item->description));
+                })
+                ->exists();
             if ($exists) continue;
 
             $project->tasks()->create([
-                'company_id'  => $quote->company_id,
-                'created_by'  => Auth::id() ?? $quote->created_by,
-                'title'       => $item->description,
-                'description' => "Généré depuis le devis {$quote->reference}. Quantité prévue : {$item->quantity} {$item->unit}.",
-                'status'      => 'a_faire',
-                'priority'    => 'normale',
-                'weight'      => 1,
-                'due_date'    => $project->planned_end_date ?? now()->addDays(30),
+                'company_id'    => $quote->company_id,
+                'quote_item_id' => $item->id,
+                'created_by'    => Auth::id() ?? $quote->created_by,
+                'title'         => $item->description,
+                'description'   => "Généré depuis le devis {$quote->reference}. Quantité prévue : {$item->quantity} {$item->unit}.",
+                'status'        => 'a_faire',
+                'priority'      => 'normale',
+                'weight'        => 1,
+                'due_date'      => $project->planned_end_date ?? now()->addDays(30),
             ]);
             $count++;
         }
@@ -355,39 +483,40 @@ class QuoteController extends Controller
         $quote->load(['sections.items', 'items']);
 
         $company = Auth::user()->company;
-        $prefix  = $company->quote_prefix ?? 'DEV';
-        $lastNum = $company->quotes()->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
-        $reference = $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
 
-        $newQuote = $quote->replicate(['client_token', 'client_responded_at', 'client_response_note', 'status', 'version', 'project_id']);
-        $newQuote->reference        = $reference;
-        $newQuote->title            = $request->title ?? ($quote->title . ' (copie)');
-        $newQuote->quote_date       = now()->toDateString();
-        $newQuote->status           = 'brouillon';
-        $newQuote->version          = 1;
-        $newQuote->parent_quote_id  = $quote->id;
-        $newQuote->created_by       = Auth::id();
-        $newQuote->save();
+        $newQuote = DB::transaction(function () use ($request, $quote, $company) {
+            $newQuote = $quote->replicate(['client_token', 'client_responded_at', 'client_response_note', 'status', 'version', 'project_id']);
+            $newQuote->reference        = $company->nextQuoteReference();
+            $newQuote->title            = $request->title ?? ($quote->title . ' (copie)');
+            $newQuote->quote_date       = now()->toDateString();
+            $newQuote->status           = 'brouillon';
+            $newQuote->version          = 1;
+            $newQuote->parent_quote_id  = $quote->id;
+            $newQuote->created_by       = Auth::id();
+            $newQuote->save();
 
-        // Copy sections and their items
-        $sectionMap = [];
-        foreach ($quote->sections as $section) {
-            $newSection = $newQuote->sections()->create([
-                'title'      => $section->title,
-                'sort_order' => $section->sort_order,
-            ]);
-            $sectionMap[$section->id] = $newSection->id;
-        }
+            // Copy sections and their items
+            $sectionMap = [];
+            foreach ($quote->sections as $section) {
+                $newSection = $newQuote->sections()->create([
+                    'title'      => $section->title,
+                    'sort_order' => $section->sort_order,
+                ]);
+                $sectionMap[$section->id] = $newSection->id;
+            }
 
-        // Copy all items (respecting section mapping)
-        foreach ($quote->items as $item) {
-            $newItem = $item->replicate();
-            $newItem->quote_id = $newQuote->id;
-            $newItem->quote_section_id = $item->quote_section_id
-                ? ($sectionMap[$item->quote_section_id] ?? null)
-                : null;
-            $newItem->save();
-        }
+            // Copy all items (respecting section mapping)
+            foreach ($quote->items as $item) {
+                $newItem = $item->replicate();
+                $newItem->quote_id = $newQuote->id;
+                $newItem->quote_section_id = $item->quote_section_id
+                    ? ($sectionMap[$item->quote_section_id] ?? null)
+                    : null;
+                $newItem->save();
+            }
+
+            return $newQuote;
+        });
 
         return redirect()->route('quotes.show', $newQuote)
             ->with('success', 'Devis dupliqué : ' . $newQuote->reference);
@@ -459,34 +588,7 @@ class QuoteController extends Controller
             ]);
 
             if ($request->decision === 'accepte') {
-                // Naissance du chantier si non lié
-                if (!$quote->project_id) {
-                    $project = Project::create([
-                        'company_id'      => $quote->company_id,
-                        'client_id'       => $quote->client_id,
-                        'name'            => $quote->title,
-                        'contract_amount' => $quote->total_ttc,
-                        'budget_total'    => $quote->items->sum('dbe_total'),
-                        'tva_rate'        => $quote->tva_rate,
-                        'status'          => 'en_cours',
-                        'start_date'      => now(),
-                    ]);
-
-                    $quote->update(['project_id' => $project->id]);
-                    $quote->setRelation('project', $project);
-                } else {
-                    // Si déjà lié, on s'assure que le projet passe en cours
-                    $quote->project->update(['status' => 'en_cours']);
-                }
-
-                // Génération automatique des tâches
-                $this->performTaskGeneration($quote);
-
-                \App\Models\ProjectLog::log(
-                    $quote->project_id,
-                    'quote_accepted',
-                    "Le client a accepté le devis {$quote->reference} via le portail public. Le chantier a été activé."
-                );
+                $this->activateAcceptedQuote($quote, viaPublicPortal: true);
 
                 // Notify the quote creator
                 try {

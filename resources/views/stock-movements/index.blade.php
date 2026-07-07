@@ -18,7 +18,7 @@
                 <i class="bi bi-boxes me-1"></i>Dashboard stock
             </a>
             @can('stock.create')
-            <a href="{{ route('stock-movements.create') }}" class="btn btn-primary shadow-app">
+            <a href="{{ route('stock-movements.create') }}" id="tour-stock-new" class="btn btn-primary shadow-app">
                 <i class="bi bi-plus-lg me-1"></i>Nouveau mouvement
             </a>
             @endcan
@@ -54,7 +54,7 @@
 
     <x-card>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-stock-table" class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th>Date</th>

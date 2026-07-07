@@ -31,6 +31,7 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ExpenseTemplateController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -57,6 +58,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     Route::get('/', fn() => redirect()->route('dashboard'));
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Aide
+    Route::get('/aide', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -173,11 +177,18 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::post('materials/{material}/prices', [MaterialController::class, 'storePrice'])->name('materials.prices.store');
     Route::delete('materials/{material}/prices/{price}', [MaterialController::class, 'destroyPrice'])->name('materials.prices.destroy');
 
-    // Modèles de dosage (DBE)
+    // Modèles de dosage (DBE) — formules techniques de mélange (béton, mortier...), utilisées sur les devis
     Route::post('dosage/calculate', [DosageController::class, 'calculate'])->name('dosage.calculate');
     Route::resource('dosage', DosageController::class);
     Route::post('dosage/{dosage}/items', [DosageController::class, 'storeItem'])->name('dosage.items.store');
     Route::delete('dosage/{dosage}/items/{item}', [DosageController::class, 'destroyItem'])->name('dosage.items.destroy');
+
+    // Modèles de dépense — sous-détails de prix (matériaux/M.O./matériel/sous-traitance), appliqués aux tâches
+    Route::post('expense-templates/calculate', [ExpenseTemplateController::class, 'calculate'])->name('expense-templates.calculate');
+    Route::resource('expense-templates', ExpenseTemplateController::class);
+    Route::post('expense-templates/{expenseTemplate}/items', [ExpenseTemplateController::class, 'storeItem'])->name('expense-templates.items.store');
+    Route::patch('expense-templates/{expenseTemplate}/items/{item}/price', [ExpenseTemplateController::class, 'updateItemPrice'])->name('expense-templates.items.update-price');
+    Route::delete('expense-templates/{expenseTemplate}/items/{item}', [ExpenseTemplateController::class, 'destroyItem'])->name('expense-templates.items.destroy');
 
     // ── Wave 6 : Bons de commande ────────────────────────────────────────────
     Route::resource('purchase-orders', PurchaseOrderController::class);
@@ -186,9 +197,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     // ── Wave 7 : Tâches ──────────────────────────────────────────────────────
     Route::get('tasks/kanban', [TaskController::class, 'kanban'])->name('tasks.kanban');
+    Route::patch('tasks/reorder', [TaskController::class, 'reorder'])->name('tasks.reorder');
     Route::patch('tasks/{task}/status', [TaskController::class, 'updateStatus'])->name('tasks.status');
     Route::patch('tasks/{task}/checklist', [TaskController::class, 'updateChecklist'])->name('tasks.checklist');
     Route::post('tasks/{task}/comments', [TaskController::class, 'storeComment'])->name('tasks.comments.store');
+    Route::post('tasks/{task}/apply-expense-template', [ExpenseTemplateController::class, 'applyToTask'])->name('tasks.apply-expense-template');
     Route::resource('tasks', TaskController::class);
 
     // ── Wave 8 : Pointage ────────────────────────────────────────────────────

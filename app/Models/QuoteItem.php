@@ -47,6 +47,11 @@ class QuoteItem extends Model
         return $this->belongsTo(DosageModel::class);
     }
 
+    public function task()
+    {
+        return $this->hasOne(Task::class);
+    }
+
     /**
      * Coefficient multiplicateur global (FG + marge + aléas).
      * K = (1 + fg%) × (1 + margin%) × (1 + alea%)

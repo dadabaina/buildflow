@@ -14,7 +14,7 @@
                 <i class="bi bi-people"></i>
                 <span>Gérer les utilisateurs</span>
             </a>
-            <a href="{{ route('roles.create') }}" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
+            <a href="{{ route('roles.create') }}" id="tour-roles-new" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
                 <i class="bi bi-shield-plus fs-5"></i>
                 <span>Créer un rôle</span>
             </a>

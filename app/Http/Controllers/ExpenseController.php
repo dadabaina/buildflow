@@ -6,6 +6,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Project;
 use App\Models\Supplier;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,7 +14,7 @@ class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::with(['project', 'category', 'supplier', 'createdBy'])->latest();
+        $query = Expense::with(['project', 'task', 'category', 'supplier', 'createdBy'])->latest();
 
         if ($projectId = $request->input('project_id')) {
             $query->where('project_id', $projectId);
@@ -36,7 +37,8 @@ class ExpenseController extends Controller
         $projects    = Project::orderBy('name')->get();
         $categories  = ExpenseCategory::orderBy('name')->get();
         $suppliers   = Supplier::orderBy('name')->get();
-        return view('expenses.form', compact('projects', 'categories', 'suppliers'));
+        $tasks       = Task::orderBy('title')->get();
+        return view('expenses.form', compact('projects', 'categories', 'suppliers', 'tasks'));
     }
 
     public function store(Request $request)
@@ -64,7 +66,8 @@ class ExpenseController extends Controller
         $projects   = Project::orderBy('name')->get();
         $categories = ExpenseCategory::orderBy('name')->get();
         $suppliers  = Supplier::orderBy('name')->get();
-        return view('expenses.form', compact('expense', 'projects', 'categories', 'suppliers'));
+        $tasks      = Task::orderBy('title')->get();
+        return view('expenses.form', compact('expense', 'projects', 'categories', 'suppliers', 'tasks'));
     }
 
     public function update(Request $request, Expense $expense)
@@ -118,6 +121,7 @@ class ExpenseController extends Controller
     {
         return $request->validate([
             'project_id'          => ['required', 'exists:projects,id'],
+            'task_id'             => ['nullable', 'exists:tasks,id'],
             'expense_category_id' => ['nullable', 'exists:expense_categories,id'],
             'supplier_id'         => ['nullable', 'exists:suppliers,id'],
             'description'         => ['required', 'string', 'max:500'],

@@ -10,7 +10,7 @@
             <span class="badge bg-secondary ms-2">{{ $models->count() }}</span>
         </h5>
         @can('dosage.create')
-        <a href="{{ route('dosage.create') }}" class="btn btn-primary">
+        <a href="{{ route('dosage.create') }}" id="tour-dosage-new" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>Nouveau modèle
         </a>
         @endcan

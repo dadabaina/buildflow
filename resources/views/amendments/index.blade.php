@@ -14,7 +14,7 @@
     <x-card title="Avenants" icon="bi bi-file-earmark-plus">
         <x-slot name="headerActions">
             @can('amendments.create')
-            <a href="{{ route('amendments.create') }}" class="btn btn-primary btn-sm px-3 shadow-sm-app">
+            <a href="{{ route('amendments.create') }}" id="tour-amendments-new" class="btn btn-primary btn-sm px-3 shadow-sm-app">
                 <i class="bi bi-plus-lg me-1"></i>Nouvel avenant
             </a>
             @endcan
@@ -44,7 +44,7 @@
         </form>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-amendments-table" class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th class="border-0">Référence</th>

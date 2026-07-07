@@ -7,17 +7,16 @@
 
     @php
     $statusConfig = [
-        'pending'   => ['label' => 'En attente', 'class' => 'badge-soft-warning', 'icon' => 'bi-clock-history'],
-        'validated' => ['label' => 'Validée',    'class' => 'badge-soft-success', 'icon' => 'bi-check-circle-fill'],
-        'rejected'  => ['label' => 'Rejetée',    'class' => 'badge-soft-danger',  'icon' => 'bi-x-circle-fill'],
-        'saisie'    => ['label' => 'Saisie',     'class' => 'badge-soft-secondary','icon' => 'bi-pencil'],
+        'saisie'  => ['label' => 'Saisie',   'class' => 'badge-soft-secondary', 'icon' => 'bi-pencil'],
+        'validee' => ['label' => 'Validée',  'class' => 'badge-soft-success',   'icon' => 'bi-check-circle-fill'],
+        'rejetee' => ['label' => 'Rejetée',  'class' => 'badge-soft-danger',    'icon' => 'bi-x-circle-fill'],
     ];
     $sc = $statusConfig[$expense->status] ?? ['label' => $expense->status, 'class' => 'badge-soft-secondary', 'icon' => 'bi-info-circle'];
     @endphp
 
     {{-- Hero Section --}}
     <div class="card border-0 shadow-sm-app rounded-4 mb-4 overflow-hidden">
-        <div class="card-body p-0">
+        <div class="card-body p-0" id="tour-expense-details">
             <div class="p-4 p-md-5 position-relative" style="background: linear-gradient(135deg, #1e2a35 0%, #2c3e50 100%); color: white;">
                 <div class="position-relative z-index-1">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -33,16 +32,20 @@
                             </p>
                         </div>
                         <div class="d-flex gap-2">
-                            @if($expense->status === 'pending')
+                            @if($expense->status === 'saisie')
                                 @can('expenses.validate')
                                 <form method="POST" action="{{ route('expenses.validate', $expense) }}">
-                                    @csrf
-                                    <button class="btn btn-success fw-bold px-4 shadow-sm">
+                                    @csrf @method('PATCH')
+                                    <button id="tour-expense-validate" class="btn btn-success fw-bold px-4 shadow-sm">
                                         <i class="bi bi-check-lg me-2"></i>Valider la dépense
                                     </button>
                                 </form>
-                                <form method="POST" action="{{ route('expenses.reject', $expense) }}">
-                                    @csrf
+                                @endcan
+                                @can('expenses.reject')
+                                <form method="POST" action="{{ route('expenses.reject', $expense) }}"
+                                      onsubmit="return injectRejectionReason(this)">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="rejection_reason">
                                     <button class="btn btn-outline-light px-4 border-opacity-25 fw-bold">
                                         <i class="bi bi-x-lg me-2 text-danger"></i>Rejeter
                                     </button>
@@ -121,6 +124,12 @@
                                 </a>
                                 @else
                                 <div class="fw-bold text-muted fs-6 small">Aucun chantier</div>
+                                @endif
+                                @if($expense->task)
+                                <div class="text-muted small mt-1">
+                                    <i class="bi bi-diagram-3 me-1"></i>
+                                    <a href="{{ route('tasks.show', $expense->task) }}" class="text-decoration-none">{{ $expense->task->title }}</a>
+                                </div>
                                 @endif
                             </div>
                         </div>
@@ -220,4 +229,15 @@
             </x-card>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function injectRejectionReason(form) {
+            const reason = prompt('Motif du rejet :');
+            if (!reason || !reason.trim()) return false;
+            form.querySelector('input[name="rejection_reason"]').value = reason.trim();
+            return true;
+        }
+    </script>
+    @endpush
 </x-layouts.app>

@@ -7,11 +7,11 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Pointage</h4>
         <div>
-            <a href="{{ route('attendances.recap') }}" class="btn btn-outline-secondary btn-sm me-1">
+            <a href="{{ route('attendances.recap') }}" id="tour-attendance-recap" class="btn btn-outline-secondary btn-sm me-1">
                 <i class="bi bi-bar-chart me-1"></i>Récap mensuel
             </a>
             @can('attendances.create')
-                <a href="{{ route('attendances.create') }}" class="btn btn-primary btn-sm">
+                <a href="{{ route('attendances.create') }}" id="tour-attendance-new" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i>Saisir pointage
                 </a>
             @endcan

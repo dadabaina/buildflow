@@ -37,7 +37,7 @@
     @stack('styles')
 </head>
 
-<body>
+<body data-page="{{ optional(request()->route())->getName() }}">
 
 <!-- Layout wrapper -->
 <div class="layout-wrapper layout-content-navbar">
@@ -73,6 +73,15 @@
                     </div>
 
                     <ul class="navbar-nav flex-row align-items-center ms-auto gap-2">
+
+                        <!-- Aide -->
+                        <li class="nav-item">
+                            <a href="{{ route('help.index') }}" id="help-launch-btn" data-hub-url="{{ route('help.index') }}"
+                               class="nav-link btn btn-label-primary btn-icon rounded-circle" title="Lancer le guide de cette page">
+                                <i class="icon-base bx bx-help-circle icon-md"></i>
+                            </a>
+                        </li>
+                        <!-- /Aide -->
 
                         <!-- Notifications -->
                         @php $unreadCount = auth()->user()?->unreadNotifications()->count(); @endphp

@@ -8,8 +8,10 @@
     <script>
         function billingLines() {
             return {
-                lines: {!! json_encode(isset($progressBilling) 
+                quotesData: {!! json_encode($quotesData ?? []) !!},
+                lines: {!! json_encode(isset($progressBilling)
                     ? ($progressBilling ?? null)?->lines?->map(fn($l) => [
+                        'quote_item_id' => $l->quote_item_id,
                         'description' => $l->description,
                         'quote_quantity' => $l->quote_quantity,
                         'unit' => $l->unit,
@@ -17,20 +19,38 @@
                         'previous_pct' => $l->previous_pct,
                         'current_pct' => $l->current_pct,
                         'amount' => $l->current_amount
-                    ]) 
-                    : [['description' => '', 'quote_quantity' => 0, 'unit' => '', 'unit_price' => 0, 'previous_pct' => 0, 'current_pct' => 0, 'amount' => 0]]
+                    ])
+                    : [['quote_item_id' => null, 'description' => '', 'quote_quantity' => 0, 'unit' => '', 'unit_price' => 0, 'previous_pct' => 0, 'current_pct' => 0, 'amount' => 0]]
                 ) !!},
-                add()  { this.lines.push({description:'',quote_quantity:0,unit:'',unit_price:0,previous_pct:0,current_pct:0,amount:0}); },
+                add()  { this.lines.push({quote_item_id:null,description:'',quote_quantity:0,unit:'',unit_price:0,previous_pct:0,current_pct:0,amount:0}); },
                 remove(i) { this.lines.splice(i, 1); },
                 calcAmount(i) {
                     const l = this.lines[i];
                     l.amount = Math.round((l.current_pct / 100) * l.quote_quantity * l.unit_price * 100) / 100;
                 },
+                loadFromQuote(quoteId) {
+                    const quote = this.quotesData[quoteId];
+                    if (!quote || !quote.items.length) return;
+                    if (this.lines.some(l => l.description) &&
+                        !confirm('Remplacer les lignes actuelles par celles du devis sélectionné ?')) {
+                        return;
+                    }
+                    this.lines = quote.items.map(item => ({
+                        quote_item_id: item.quote_item_id,
+                        description: item.description,
+                        quote_quantity: item.quantity,
+                        unit: item.unit,
+                        unit_price: item.unit_price,
+                        previous_pct: item.previous_pct,
+                        current_pct: 0,
+                        amount: 0,
+                    }));
+                },
             };
         }
     </script>
 
-    <form method="POST" action="{{ isset($progressBilling) ? route('progress-billings.update', $progressBilling) : route('progress-billings.store') }}">
+    <form method="POST" action="{{ isset($progressBilling) ? route('progress-billings.update', $progressBilling) : route('progress-billings.store') }}" x-data="billingLines()">
         @csrf
         @if(isset($progressBilling)) @method('PUT') @endif
 
@@ -50,12 +70,14 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Devis de référence</label>
-                            <select name="quote_id" class="form-select @error('quote_id') is-invalid @enderror">
+                            <select name="quote_id" class="form-select @error('quote_id') is-invalid @enderror"
+                                    @change="loadFromQuote($event.target.value)">
                                 <option value="">— Aucun —</option>
                                 @foreach($quotes as $q)
                                     <option value="{{ $q->id }}" {{ old('quote_id', ($progressBilling ?? null)?->quote_id ?? '') == $q->id ? 'selected' : '' }}>{{ $q->reference }}</option>
                                 @endforeach
                             </select>
+                            <div class="form-text">Sélectionner un devis charge automatiquement ses lignes ci-dessous (avec le % déjà facturé si applicable).</div>
                             @error('quote_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-12">
@@ -106,7 +128,7 @@
         </div>
 
         {{-- Lignes d'avancement --}}
-        <div class="mt-4" x-data="billingLines()">
+        <div class="mt-4">
             <x-card title="Tableau d'avancement" icon="bi bi-table">
                 <p class="text-muted small mb-3">Indiquez le % d'avancement pour cette situation. Le montant est calculé automatiquement.</p>
                 <div class="table-responsive">
@@ -126,7 +148,10 @@
                         <tbody>
                             <template x-for="(line, i) in lines" :key="i">
                                 <tr>
-                                    <td><input type="text" :name="`lines[${i}][description]`" x-model="line.description" class="form-control form-control-sm" required></td>
+                                    <td>
+                                        <input type="hidden" :name="`lines[${i}][quote_item_id]`" x-model="line.quote_item_id">
+                                        <input type="text" :name="`lines[${i}][description]`" x-model="line.description" class="form-control form-control-sm" required>
+                                    </td>
                                     <td><input type="number" :name="`lines[${i}][quote_quantity]`" x-model="line.quote_quantity" class="form-control form-control-sm" step="0.001" @input="calcAmount(i)"></td>
                                     <td><input type="text" :name="`lines[${i}][unit]`" x-model="line.unit" class="form-control form-control-sm"></td>
                                     <td><input type="number" :name="`lines[${i}][unit_price]`" x-model="line.unit_price" class="form-control form-control-sm" step="0.01" @input="calcAmount(i)"></td>

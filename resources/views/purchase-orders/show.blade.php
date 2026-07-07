@@ -16,7 +16,7 @@
                                 <i class="bx bx-file-blank fs-1"></i>
                             </div>
                             <div>
-                                <div class="d-flex align-items-center gap-2 mb-1">
+                                <div class="d-flex align-items-center gap-2 mb-1" id="tour-po-status">
                                     <h4 class="mb-0 fw-bold">{{ $purchaseOrder->reference }}</h4>
                                     <span class="badge {{ $purchaseOrder->status_badge_class }} badge-sm text-uppercase">
                                         {{ $purchaseOrder->status_libelle }}
@@ -252,7 +252,7 @@
 
             <!-- Conversion to Expense -->
             @if(in_array($purchaseOrder->status, ['livre', 'partiellement_livre']))
-                <div class="card border-0 shadow-sm mb-4 bg-label-success">
+                <div class="card border-0 shadow-sm mb-4 bg-label-success" id="tour-po-convert">
                     <div class="card-body p-4 text-center">
                         <i class="bx bx-repost fs-1 mb-2"></i>
                         <h6 class="fw-bold mb-2">Facturation Fournisseur</h6>

@@ -61,18 +61,14 @@ class InvoiceController extends Controller
         ]);
 
         $company = Auth::user()->company;
-        $prefix  = $company->invoice_prefix ?? 'FAC';
-        $lastNum = $company->invoices()->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
-        $reference = $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
-
         $project = $company->projects()->findOrFail($request->project_id);
         $clientId = $request->client_id ?? $project->client_id;
 
-        $invoice = $company->invoices()->create([
+        $invoice = DB::transaction(fn () => $company->invoices()->create([
             'project_id'       => $project->id,
             'client_id'        => $clientId,
             'created_by'       => Auth::id(),
-            'reference'        => $reference,
+            'reference'        => $company->nextInvoiceReference(),
             'title'            => $request->title,
             'type'             => $request->type,
             'invoice_date'     => $request->invoice_date,
@@ -88,7 +84,7 @@ class InvoiceController extends Controller
             'amount_remaining' => 0,
             'status'           => 'brouillon',
             'notes'            => $request->notes,
-        ]);
+        ]));
 
         return redirect()->route('invoices.show', $invoice)
             ->with('success', 'Facture créée. Ajoutez maintenant les lignes.');

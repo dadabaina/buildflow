@@ -10,7 +10,7 @@
             <p class="text-secondary small mb-0">Suivez vos propositions commerciales et leur taux d'acceptation.</p>
         </div>
         @can('quotes.create')
-        <a href="{{ route('quotes.create') }}" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
+        <a href="{{ route('quotes.create') }}" id="tour-quotes-new" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
             <i class="bi bi-file-earmark-plus-fill fs-5"></i>
             <span>Nouveau devis</span>
         </a>
@@ -56,7 +56,7 @@
 
     <div class="card border-0 shadow-sm-app overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-quotes-table" class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Référence & Titre</th>

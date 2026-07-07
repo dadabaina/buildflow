@@ -24,7 +24,7 @@
                             <a href="{{ route('materials.export') }}" class="btn btn-outline-secondary shadow-sm">
                                 <i class="bx bx-download me-1"></i>Exporter
                             </a>
-                            <a href="{{ route('materials.create') }}" class="btn btn-primary shadow-sm px-4">
+                            <a href="{{ route('materials.create') }}" id="tour-materials-new" class="btn btn-primary shadow-sm px-4">
                                 <i class="bx bx-plus me-1"></i>Nouveau matériau
                             </a>
                             @endcan
@@ -143,7 +143,7 @@
 
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table id="tour-materials-table" class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-4 py-3 border-0 small text-uppercase text-muted">Désignation</th>

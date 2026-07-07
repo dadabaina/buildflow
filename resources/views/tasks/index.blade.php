@@ -7,11 +7,11 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0"><i class="bi bi-kanban me-2"></i>Tâches</h4>
         <div>
-            <a href="{{ route('tasks.kanban') }}" class="btn btn-outline-secondary btn-sm me-1">
+            <a href="{{ route('tasks.kanban') }}" id="tour-tasks-kanban-link" class="btn btn-outline-secondary btn-sm me-1">
                 <i class="bi bi-grid-3x3-gap me-1"></i>Kanban
             </a>
             @can('tasks.create')
-                <a href="{{ route('tasks.create') }}" class="btn btn-primary btn-sm">
+                <a href="{{ route('tasks.create') }}" id="tour-tasks-new" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i>Nouvelle tâche
                 </a>
             @endcan

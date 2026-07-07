@@ -72,12 +72,14 @@ class ProjectController extends Controller
         abort_if($project->company_id !== Auth::user()->company_id, 403);
         $project->load([
             'client', 'region', 'employees.jobTypes', 'requirements.jobType.category',
-            'expenses'       => fn($q) => $q->with('category')->latest()->take(10),
+            'expenses'       => fn($q) => $q->with(['category', 'task'])->latest()->take(10),
             'quotes'         => fn($q) => $q->latest()->take(5),
             'invoices'       => fn($q) => $q->latest()->take(5),
             'amendments'     => fn($q) => $q->latest()->take(10),
             'purchaseOrders' => fn($q) => $q->with('supplier')->latest()->take(10),
-            'tasks'          => fn($q) => $q->with('employees')->latest()->take(20),
+            'tasks'          => fn($q) => $q->with(['employees', 'quoteItem'])
+                ->withSum(['expenses as validated_expenses_total' => fn($q2) => $q2->where('status', 'validee')], 'total_amount')
+                ->orderBy('sort_order')->orderBy('id')->take(20),
             'attendances'    => fn($q) => $q->with('employee')->orderBy('work_date', 'desc')->take(30),
             'documents'      => fn($q) => $q->with('uploadedBy')->latest()->take(20),
             'warehouses',

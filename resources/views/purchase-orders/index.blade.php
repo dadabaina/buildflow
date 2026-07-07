@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0"><i class="bi bi-file-earmark-check me-2"></i>Bons de commande</h4>
         @can('purchase_orders.create')
-            <a href="{{ route('purchase-orders.create') }}" class="btn btn-primary btn-sm">
+            <a href="{{ route('purchase-orders.create') }}" id="tour-po-new" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>Nouveau bon de commande
             </a>
         @endcan
@@ -51,7 +51,7 @@
     <div class="card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table id="tour-po-table" class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Référence</th>

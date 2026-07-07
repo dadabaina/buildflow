@@ -10,7 +10,7 @@
             <p class="text-secondary small mb-0">Gérez vos encaissements et suivez les retards de paiement.</p>
         </div>
         @can('invoices.create')
-        <a href="{{ route('invoices.create') }}" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
+        <a href="{{ route('invoices.create') }}" id="tour-invoices-new" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
             <i class="bi bi-file-earmark-check-fill fs-5"></i>
             <span>Nouvelle facture</span>
         </a>
@@ -75,7 +75,7 @@
 
     <div class="card border-0 shadow-sm-app overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-invoices-table" class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Référence & Titre</th>

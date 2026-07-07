@@ -111,7 +111,7 @@
                 <div>Bons de commande</div>
             </a>
         </li>
-        <li class="menu-item {{ request()->routeIs('materials.*', 'dosage.*') ? 'active open' : '' }}">
+        <li class="menu-item {{ request()->routeIs('materials.*', 'dosage.*', 'expense-templates.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-cube-alt"></i>
                 <div>Bibliothèque Technique</div>
@@ -122,6 +122,9 @@
                 </li>
                 <li class="menu-item {{ request()->routeIs('dosage.*') ? 'active' : '' }}">
                     <a href="{{ route('dosage.index') }}" class="menu-link"><div>Dosages DBE</div></a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('expense-templates.*') ? 'active' : '' }}">
+                    <a href="{{ route('expense-templates.index') }}" class="menu-link"><div>Modèles de dépense</div></a>
                 </li>
             </ul>
         </li>

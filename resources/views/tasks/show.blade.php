@@ -131,6 +131,108 @@
             </div>
             @endif
 
+            <!-- Dépenses de la tâche -->
+            <div class="card border-0 shadow-sm mb-4" id="tour-task-expenses">
+                <div class="card-header border-bottom bg-transparent py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="bx bx-receipt me-2"></i>Dépenses de la tâche ({{ $task->expenses->count() }})</h6>
+                    @can('expenses.create')
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('expenses.create', ['project_id' => $task->project_id, 'task_id' => $task->id]) }}" class="btn btn-sm btn-primary">
+                            <i class="bx bx-plus me-1"></i>Ajouter une dépense
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
+                            <i class="bx bx-magic-wand me-1"></i>Appliquer un modèle
+                        </button>
+                    </div>
+                    @endcan
+                </div>
+                <div class="card-body py-4">
+                    @php
+                        $taskExpensesTotal = $task->expenses->where('status', 'validee')->sum('total_amount');
+                        $plannedBudget = $task->planned_budget;
+                        $budgetGap = $plannedBudget !== null ? $plannedBudget - $taskExpensesTotal : null;
+                    @endphp
+                    <div class="row g-2 mb-3">
+                        <div class="{{ $plannedBudget !== null ? 'col-md-4' : 'col-12' }}">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 h-100">
+                                <span class="text-muted small text-uppercase fw-semibold">Réel validé</span>
+                                <span class="fw-bold text-dark fs-5">{{ number_format($taskExpensesTotal, 0, ',', ' ') }} <small class="text-muted">MGA</small></span>
+                            </div>
+                        </div>
+                        @if($plannedBudget !== null)
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 h-100"
+                                 title="Déboursé sec (DBE) de la ligne du devis dont cette tâche est issue.">
+                                <span class="text-muted small text-uppercase fw-semibold">Prévu (DBE)</span>
+                                <span class="fw-bold text-dark fs-5">{{ number_format($plannedBudget, 0, ',', ' ') }} <small class="text-muted">MGA</small></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between align-items-center p-3 rounded-3 h-100 {{ $budgetGap < 0 ? 'bg-danger-subtle' : 'bg-success-subtle' }}"
+                                 title="Prévu (DBE) − Réel validé. Négatif : le coût réel dépasse le déboursé prévu au devis.">
+                                <span class="text-muted small text-uppercase fw-semibold">Écart</span>
+                                <span class="fw-bold fs-5 {{ $budgetGap < 0 ? 'text-danger' : 'text-success' }}">{{ ($budgetGap >= 0 ? '+' : '') . number_format($budgetGap, 0, ',', ' ') }} <small class="text-muted">MGA</small></span>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Catégorie</th>
+                                    <th class="text-end">Montant</th>
+                                    <th>Statut</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($task->expenses as $exp)
+                                <tr>
+                                    <td class="small"><a href="{{ route('expenses.show', $exp) }}" class="text-decoration-none">{{ Str::limit($exp->description, 40) }}</a></td>
+                                    <td class="small text-muted">{{ $exp->category?->name ?? '—' }}</td>
+                                    <td class="text-end small fw-medium">{{ number_format($exp->total_amount, 0, ',', ' ') }} MGA</td>
+                                    <td><span class="badge {{ $exp->status_badge_class }} small">{{ $exp->status_libelle }}</span></td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-1">
+                                            @if($exp->status === 'saisie')
+                                                @can('expenses.validate')
+                                                <form method="POST" action="{{ route('expenses.validate', $exp) }}">
+                                                    @csrf @method('PATCH')
+                                                    <button type="submit" class="btn btn-sm btn-icon btn-label-success" title="Valider">
+                                                        <i class="bx bx-check"></i>
+                                                    </button>
+                                                </form>
+                                                @endcan
+                                                @can('expenses.edit')
+                                                <a href="{{ route('expenses.edit', $exp) }}" class="btn btn-sm btn-icon btn-label-secondary" title="Modifier le prix">
+                                                    <i class="bx bx-edit-alt"></i>
+                                                </a>
+                                                @endcan
+                                            @endif
+                                            @can('expenses.delete')
+                                            <form method="POST" action="{{ route('expenses.destroy', $exp) }}" onsubmit="return confirm('Supprimer cette dépense ? Le modèle utilisé pour la générer ne sera pas affecté.')">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-icon btn-label-danger" title="Supprimer">
+                                                    <i class="bx bx-trash"></i>
+                                                </button>
+                                            </form>
+                                            @endcan
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3 small">Aucune dépense liée à cette tâche.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Comments Section -->
             <div class="card border-0 shadow-sm">
                 <div class="card-header border-bottom bg-transparent py-3">
@@ -266,6 +368,52 @@
             @endcan
         </div>
     </div>
+
+    <!-- Modal : Appliquer un modèle de dépense -->
+    @can('expenses.create')
+    <div class="modal fade" id="applyTemplateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ route('tasks.apply-expense-template', $task) }}">
+                    @csrf
+                    <div class="modal-header">
+                        <h6 class="modal-title fw-bold">Appliquer un modèle de dépense</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Modèle de dépense</label>
+                            <select name="expense_template_id" class="form-select" required>
+                                <option value="">— Sélectionner —</option>
+                                @foreach($expenseTemplates as $tpl)
+                                <option value="{{ $tpl->id }}">{{ $tpl->name }} ({{ $tpl->output_unit }})</option>
+                                @endforeach
+                            </select>
+                            @if($expenseTemplates->isEmpty())
+                            <div class="form-text text-warning">
+                                Aucun modèle disponible. <a href="{{ route('expense-templates.create') }}">Créer un modèle de dépense</a>.
+                            </div>
+                            @endif
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label">Quantité réelle sur cette tâche</label>
+                            <input type="number" name="quantity" class="form-control" step="0.001" min="0.001" required>
+                        </div>
+                        <div class="form-text">
+                            Génère une dépense réelle par ligne du modèle (statut « Saisie », à valider ensuite).
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bx bx-magic-wand me-1"></i>Générer les dépenses
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endcan
 
     @push('styles')
     <style>

@@ -12,7 +12,7 @@ class Expense extends Model
     use HasFactory, SoftDeletes, BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'project_id', 'expense_category_id', 'supplier_id',
+        'company_id', 'project_id', 'task_id', 'expense_category_id', 'supplier_id',
         'created_by', 'validated_by', 'description', 'expense_date',
         'quantity', 'unit', 'unit_price', 'payment_mode', 'payment_reference',
         'receipt_path', 'status', 'rejection_reason', 'validated_at', 'notes',
@@ -34,6 +34,11 @@ class Expense extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function task()
+    {
+        return $this->belongsTo(Task::class);
     }
 
     public function category()

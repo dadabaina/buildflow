@@ -42,13 +42,13 @@
                                 @if($quote->status === 'brouillon')
                                     <form method="POST" action="{{ route('quotes.accept', $quote) }}">
                                         @csrf
-                                        <button class="btn btn-success shadow-sm px-3" onclick="return confirm('Valider et accepter ce devis ? Cela activera le chantier.')">
+                                        <button id="tour-quote-accept" class="btn btn-success shadow-sm px-3" onclick="return confirm('Valider et accepter ce devis ? Cela activera le chantier.')">
                                             <i class="bx bx-check-circle me-1"></i>Accepter & Créer le Chantier
                                         </button>
                                     </form>
                                     <form method="POST" action="{{ route('quotes.send', $quote) }}">
                                         @csrf
-                                        <button class="btn btn-info text-white shadow-sm px-3">
+                                        <button id="tour-quote-send" class="btn btn-info text-white shadow-sm px-3">
                                             <i class="bx bx-send me-1"></i>Envoyer
                                         </button>
                                     </form>
@@ -59,7 +59,7 @@
                                 @if($quote->status === 'envoye')
                                     <form method="POST" action="{{ route('quotes.accept', $quote) }}">
                                         @csrf
-                                        <button class="btn btn-success shadow-sm px-3" onclick="return confirm('Accepter ce devis ? Cela activera le chantier.')">
+                                        <button id="tour-quote-accept" class="btn btn-success shadow-sm px-3" onclick="return confirm('Accepter ce devis ? Cela activera le chantier.')">
                                             <i class="bx bx-check-circle me-1"></i>Accepter & Créer le Chantier
                                         </button>
                                     </form>
@@ -269,7 +269,7 @@
                 </div>
                 @endif
 
-                <div class="card-body p-0">
+                <div class="card-body p-0" id="tour-quote-items">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light">

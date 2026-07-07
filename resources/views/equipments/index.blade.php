@@ -11,7 +11,7 @@
             <p class="text-secondary small mt-1">Parc matériel de l'entreprise.</p>
         </div>
         @can('equipments.create')
-        <a href="{{ route('equipments.create') }}" class="btn btn-primary shadow-app">
+        <a href="{{ route('equipments.create') }}" id="tour-equipments-new" class="btn btn-primary shadow-app">
             <i class="bi bi-plus-lg me-1"></i>Ajouter un matériel
         </a>
         @endcan
@@ -65,7 +65,7 @@
 
     <x-card>
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-equipments-table" class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th>Nom</th>

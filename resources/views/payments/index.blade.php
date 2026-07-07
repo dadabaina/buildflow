@@ -10,7 +10,7 @@
             <span class="badge bg-secondary ms-2">{{ $payments->total() }}</span>
         </h5>
         @can('payments.create')
-        <a href="{{ route('payments.create') }}" class="btn btn-primary">
+        <a href="{{ route('payments.create') }}" id="tour-payments-new" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i>Nouveau paiement
         </a>
         @endcan
@@ -18,7 +18,7 @@
 
     <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table id="tour-payments-table" class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Date</th>

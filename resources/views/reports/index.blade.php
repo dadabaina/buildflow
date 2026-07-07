@@ -76,7 +76,7 @@
     </div>
 
     <!-- Report Modules -->
-    <div class="row g-4">
+    <div class="row g-4" id="tour-reports-list">
         <!-- 0. Analyse Prévu vs Réel -->
         <div class="col-md-6 col-lg-4">
             <div class="card border-0 shadow-sm h-100 transition-all hover-shadow bg-label-success bg-opacity-10 border border-success border-dashed">

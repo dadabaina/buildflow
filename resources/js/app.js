@@ -16,3 +16,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Guide d'aide pas-à-pas
+import { startCurrentPageTour, hasTourForCurrentPage } from './help-tours';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const helpBtn = document.getElementById('help-launch-btn');
+    if (helpBtn) {
+        if (!hasTourForCurrentPage()) {
+            helpBtn.classList.add('disabled');
+            helpBtn.title = "Aucun guide disponible sur cette page";
+        }
+        helpBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!startCurrentPageTour()) {
+                window.location.href = helpBtn.dataset.hubUrl;
+            }
+        });
+    }
+
+    // Lancement automatique depuis la page hub /aide (?tour=1)
+    if (new URLSearchParams(window.location.search).get('tour') === '1') {
+        startCurrentPageTour();
+    }
+});
+

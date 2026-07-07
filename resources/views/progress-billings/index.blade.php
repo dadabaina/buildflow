@@ -14,7 +14,7 @@
     <x-card title="Situations de travaux" icon="bi bi-bar-chart-steps">
         <x-slot name="headerActions">
             @can('progress_billings.create')
-            <a href="{{ route('progress-billings.create') }}" class="btn btn-primary btn-sm px-3 shadow-sm-app">
+            <a href="{{ route('progress-billings.create') }}" id="tour-pb-new" class="btn btn-primary btn-sm px-3 shadow-sm-app">
                 <i class="bi bi-plus-lg me-1"></i>Nouvelle situation
             </a>
             @endcan
@@ -44,7 +44,7 @@
         </form>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-pb-table" class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
                         <th class="border-0">Référence</th>

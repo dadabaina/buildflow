@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Company extends Model
 {
@@ -102,6 +103,31 @@ class Company extends Model
     public function amendments()
     {
         return $this->hasMany(Amendment::class);
+    }
+
+    /**
+     * Référence devis suivante (DEV-0001, ...). À appeler dans une transaction :
+     * le lockForUpdate empêche deux créations simultanées d'obtenir le même numéro.
+     */
+    public function nextQuoteReference(): string
+    {
+        $prefix  = $this->quote_prefix ?? 'DEV';
+        $lastNum = $this->quotes()->lockForUpdate()
+            ->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
+
+        return $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Référence facture suivante (FAC-0001, ...). Mêmes précautions que nextQuoteReference().
+     */
+    public function nextInvoiceReference(): string
+    {
+        $prefix  = $this->invoice_prefix ?? 'FAC';
+        $lastNum = $this->invoices()->lockForUpdate()
+            ->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
+
+        return $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
     }
 
     public function progressBillings()

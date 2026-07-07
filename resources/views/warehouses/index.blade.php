@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold mb-0">Dépôts de stockage</h3>
         @can('warehouses.create')
-        <a href="{{ route('warehouses.create') }}" class="btn btn-primary shadow-app">
+        <a href="{{ route('warehouses.create') }}" id="tour-warehouses-new" class="btn btn-primary shadow-app">
             <i class="bi bi-plus-lg me-1"></i>Nouveau dépôt
         </a>
         @endcan

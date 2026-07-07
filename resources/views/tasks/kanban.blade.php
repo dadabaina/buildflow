@@ -41,7 +41,7 @@
     @endphp
 
     <!-- Kanban Board -->
-    <div class="kanban-wrapper pb-4">
+    <div class="kanban-wrapper pb-4" id="tour-kanban-board">
         <div class="row g-3 flex-nowrap overflow-auto pb-3" style="min-height: calc(100vh - 250px);">
             @foreach($colConfig as $status => $cfg)
                 <div class="col-12 col-sm-6 col-md-4 col-xl-3" style="min-width: 300px;">
@@ -202,29 +202,25 @@
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     onEnd: function (evt) {
-                        const taskId = evt.item.getAttribute('data-id');
                         const newStatus = evt.to.getAttribute('data-status');
-                        const oldStatus = evt.from.getAttribute('data-status');
+                        const taskIds = Array.from(evt.to.querySelectorAll('.kanban-item')).map(el => el.getAttribute('data-id'));
 
-                        if (newStatus === oldStatus) return;
-
-                        // Update Status via AJAX
-                        fetch(`/tasks/${taskId}/status`, {
+                        // Persiste l'ordre (et le statut si la carte a changé de colonne) via AJAX
+                        fetch(`/tasks/reorder`, {
                             method: 'PATCH',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                                 'Accept': 'application/json'
                             },
-                            body: JSON.stringify({ status: newStatus })
+                            body: JSON.stringify({ status: newStatus, task_ids: taskIds })
                         })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                // Update counts (optional but nice)
                                 updateColumnCounts();
                             } else {
-                                alert('Erreur lors de la mise à jour du statut.');
+                                alert('Erreur lors de la mise à jour.');
                                 location.reload();
                             }
                         })

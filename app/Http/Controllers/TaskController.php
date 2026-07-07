@@ -40,7 +40,7 @@ class TaskController extends Controller
     public function kanban(Request $request)
     {
         $projectId = $request->input('project_id');
-        $query     = Task::with(['employees', 'project'])->latest();
+        $query     = Task::with(['employees', 'project'])->orderBy('sort_order')->orderBy('id');
 
         if ($projectId) {
             $query->where('project_id', $projectId);
@@ -92,8 +92,9 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
-        $task->load(['project', 'employees', 'comments.user', 'createdBy']);
-        return view('tasks.show', compact('task'));
+        $task->load(['project', 'employees', 'comments.user', 'createdBy', 'expenses.category', 'quoteItem']);
+        $expenseTemplates = \App\Models\ExpenseTemplate::where('is_active', true)->orderBy('name')->get();
+        return view('tasks.show', compact('task', 'expenseTemplates'));
     }
 
     public function edit(Task $task)
@@ -183,6 +184,24 @@ class TaskController extends Controller
         }
 
         return back()->with('success', 'Statut mis à jour.');
+    }
+
+    public function reorder(Request $request)
+    {
+        $data = $request->validate([
+            'status'      => 'required|in:a_faire,en_cours,en_pause,termine,annule',
+            'task_ids'    => 'required|array',
+            'task_ids.*'  => 'integer|exists:tasks,id',
+        ]);
+
+        foreach ($data['task_ids'] as $index => $taskId) {
+            Task::where('id', $taskId)->update([
+                'status'     => $data['status'],
+                'sort_order' => $index,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function storeComment(Request $request, Task $task)

@@ -10,7 +10,7 @@
             <p class="text-secondary small mb-0">Gérez les accès et les permissions de vos collaborateurs sur la plateforme.</p>
         </div>
         @can('users.create')
-        <a href="{{ route('users.create') }}" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
+        <a href="{{ route('users.create') }}" id="tour-users-new" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
             <i class="bi bi-person-plus-fill fs-5"></i>
             <span>Créer un compte</span>
         </a>
@@ -19,7 +19,7 @@
 
     <div class="card border-0 shadow-sm-app overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-users-table" class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Utilisateur</th>

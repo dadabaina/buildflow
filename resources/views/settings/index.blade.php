@@ -10,7 +10,7 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-3">
+        <div class="col-lg-3" id="tour-settings-list">
             @include('settings._nav')
         </div>
 

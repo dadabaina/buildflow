@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Invoice;
 use App\Models\ProgressBilling;
+use App\Models\ProgressBillingLine;
 use App\Models\Project;
 use App\Models\Quote;
 use Illuminate\Http\Request;
@@ -36,7 +38,8 @@ class ProgressBillingController extends Controller
         if ($selected) {
             $quotes = Quote::where('project_id', $selected)->whereIn('status', ['accepte'])->with('items')->get();
         }
-        return view('progress-billings.form', compact('projects', 'quotes', 'selected'));
+        $quotesData = $this->buildQuotesData($quotes);
+        return view('progress-billings.form', compact('projects', 'quotes', 'selected', 'quotesData'));
     }
 
     public function store(Request $request)
@@ -74,7 +77,8 @@ class ProgressBillingController extends Controller
         $progressBilling->load('lines');
         $projects = Project::orderBy('name')->get();
         $quotes   = Quote::where('project_id', $progressBilling->project_id)->whereIn('status', ['accepte'])->with('items')->get();
-        return view('progress-billings.form', compact('progressBilling', 'projects', 'quotes'));
+        $quotesData = $this->buildQuotesData($quotes, $progressBilling->id);
+        return view('progress-billings.form', compact('progressBilling', 'projects', 'quotes', 'quotesData'));
     }
 
     public function update(Request $request, ProgressBilling $progressBilling)
@@ -125,18 +129,31 @@ class ProgressBillingController extends Controller
             return back()->with('error', 'Seule une situation validée peut être facturée.');
         }
 
+        // Garde anti-dépassement du marché : situations + conversions directes
+        // ne doivent pas facturer plus que le montant contractuel du chantier.
+        $contractAmount  = (float) $progressBilling->project->contract_amount;
+        $alreadyInvoiced = (float) Invoice::where('project_id', $progressBilling->project_id)
+            ->where('status', '!=', 'annulee')
+            ->sum('total_ttc');
+
+        if ($contractAmount > 0 && $alreadyInvoiced + (float) $progressBilling->total_ttc > $contractAmount + 0.01) {
+            return back()->with('error', sprintf(
+                'Facturation impossible : %s Ar déjà facturés sur ce chantier, facturer cette situation (%s Ar) dépasserait le montant du marché (%s Ar).',
+                number_format($alreadyInvoiced, 0, ',', ' '),
+                number_format((float) $progressBilling->total_ttc, 0, ',', ' '),
+                number_format($contractAmount, 0, ',', ' ')
+            ));
+        }
+
         return DB::transaction(function () use ($progressBilling) {
             $company = Auth::user()->company;
-            $prefix  = $company->invoice_prefix ?? 'FAC';
-            $lastNum = $company->invoices()->max(DB::raw("CAST(SUBSTRING(reference, LENGTH('{$prefix}')+2) AS UNSIGNED)")) ?? 0;
-            $reference = $prefix . '-' . str_pad($lastNum + 1, 4, '0', STR_PAD_LEFT);
 
             $invoice = $company->invoices()->create([
                 'project_id'       => $progressBilling->project_id,
                 'client_id'        => $progressBilling->project->client_id,
                 'quote_id'         => $progressBilling->quote_id,
                 'created_by'       => Auth::id(),
-                'reference'        => $reference,
+                'reference'        => $company->nextInvoiceReference(),
                 'title'            => "Facture pour " . $progressBilling->title,
                 'type'             => 'situation',
                 'invoice_date'     => now(),
@@ -206,5 +223,48 @@ class ProgressBillingController extends Controller
             ]);
         }
         $billing->recalcTotals();
+    }
+
+    /**
+     * Construit, pour chaque devis proposé, la liste de ses lignes avec le
+     * pourcentage déjà facturé lors de situations antérieures (report
+     * automatique du "% précédent"). Sert à pré-remplir le formulaire côté
+     * client sans aller-retour AJAX.
+     */
+    private function buildQuotesData($quotes, ?int $excludeBillingId = null): array
+    {
+        $itemIds = $quotes->flatMap(fn($q) => $q->items->pluck('id'))->all();
+
+        $previousPct = collect();
+        if (!empty($itemIds)) {
+            $previousPct = ProgressBillingLine::whereIn('quote_item_id', $itemIds)
+                ->whereHas('progressBilling', function ($q) use ($excludeBillingId) {
+                    $q->where('status', '!=', 'annule');
+                    if ($excludeBillingId) {
+                        $q->where('id', '!=', $excludeBillingId);
+                    }
+                })
+                ->join('progress_billings', 'progress_billing_lines.progress_billing_id', '=', 'progress_billings.id')
+                ->orderByDesc('progress_billings.situation_number')
+                ->get(['progress_billing_lines.quote_item_id', 'progress_billing_lines.cumulative_pct'])
+                ->unique('quote_item_id')
+                ->pluck('cumulative_pct', 'quote_item_id');
+        }
+
+        $data = [];
+        foreach ($quotes as $quote) {
+            $data[$quote->id] = [
+                'items' => $quote->items->map(fn($item) => [
+                    'quote_item_id' => $item->id,
+                    'description'   => $item->description,
+                    'quantity'      => (float) $item->quantity,
+                    'unit'          => $item->unit,
+                    'unit_price'    => (float) $item->unit_price,
+                    'previous_pct'  => (float) ($previousPct[$item->id] ?? 0),
+                ])->values(),
+            ];
+        }
+
+        return $data;
     }
 }

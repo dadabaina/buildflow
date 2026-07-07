@@ -41,6 +41,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'materials.view', 'materials.create', 'materials.edit', 'materials.delete',
             // Dosage DBE
             'dosage.view', 'dosage.create', 'dosage.edit', 'dosage.delete',
+            // Modèles de dépense
+            'expense_templates.view', 'expense_templates.create', 'expense_templates.edit', 'expense_templates.delete',
             // Documents
             'documents.view', 'documents.create', 'documents.delete',
             // Avenants
@@ -94,6 +96,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'documents.view', 'documents.create',
             'materials.view', 'materials.create', 'materials.edit',
             'dosage.view', 'dosage.create', 'dosage.edit',
+            'expense_templates.view', 'expense_templates.create', 'expense_templates.edit',
             'amendments.view', 'amendments.create', 'amendments.edit',
             'progress_billings.view', 'progress_billings.create', 'progress_billings.edit',
             'site_reports.view', 'site_reports.create', 'site_reports.edit',
@@ -121,6 +124,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $operator->syncPermissions([
             'projects.view',
             'expenses.view', 'expenses.create',
+            'expense_templates.view',
         ]);
     }
 }

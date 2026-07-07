@@ -10,7 +10,7 @@
             <p class="text-secondary small mb-0">Suivez vos coûts opérationnels et validez les notes de frais.</p>
         </div>
         @can('expenses.create')
-        <a href="{{ route('expenses.create') }}" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
+        <a href="{{ route('expenses.create') }}" id="tour-expenses-new" class="btn btn-primary shadow-app d-flex align-items-center gap-2">
             <i class="bi bi-receipt fs-5"></i>
             <span>Enregistrer une dépense</span>
         </a>
@@ -31,9 +31,9 @@
                 <div class="col-md-2">
                     <select name="status" class="form-select form-select-sm">
                         <option value="">Tous statuts</option>
-                        <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>En attente</option>
-                        <option value="validated" {{ request('status') === 'validated' ? 'selected' : '' }}>Validée</option>
-                        <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejetée</option>
+                        <option value="saisie" {{ request('status') === 'saisie' ? 'selected' : '' }}>Saisie</option>
+                        <option value="validee" {{ request('status') === 'validee' ? 'selected' : '' }}>Validée</option>
+                        <option value="rejetee" {{ request('status') === 'rejetee' ? 'selected' : '' }}>Rejetée</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -58,20 +58,20 @@
 
     @php
     $statusConfig = [
-        'pending'   => ['label' => 'En attente', 'class' => 'badge-soft-warning'],
-        'validated' => ['label' => 'Validée',    'class' => 'badge-soft-success'],
-        'rejected'  => ['label' => 'Rejetée',    'class' => 'badge-soft-danger'],
-        'saisie'    => ['label' => 'Saisie',     'class' => 'badge-soft-secondary'],
+        'saisie'  => ['label' => 'Saisie',   'class' => 'badge-soft-secondary'],
+        'validee' => ['label' => 'Validée',  'class' => 'badge-soft-success'],
+        'rejetee' => ['label' => 'Rejetée',  'class' => 'badge-soft-danger'],
     ];
     @endphp
 
     <div class="card border-0 shadow-sm-app overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table id="tour-expenses-table" class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Référence & Description</th>
                         <th>Chantier / Catégorie</th>
+                        <th>Tâche</th>
                         <th>Montant</th>
                         <th>Date</th>
                         <th>Statut</th>
@@ -99,6 +99,13 @@
                             <div class="fw-medium text-dark small">{{ $expense->project?->name ?? 'Frais Généraux' }}</div>
                             <div class="small text-muted"><i class="bi bi-tag me-1"></i>{{ $expense->expenseCategory?->name ?? 'Non classé' }}</div>
                         </td>
+                        <td class="small">
+                            @if($expense->task)
+                            <a href="{{ route('tasks.show', $expense->task) }}" class="text-decoration-none">{{ Str::limit($expense->task->title, 30) }}</a>
+                            @else
+                            <span class="text-muted">— Générale —</span>
+                            @endif
+                        </td>
                         <td>
                             <div class="fw-bold text-danger">
                                 {{ number_format($expense->total_amount, 0, ',', ' ') }}
@@ -118,14 +125,17 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="d-flex justify-content-end gap-2">
-                                @if($expense->status === 'pending')
+                                @if($expense->status === 'saisie')
                                     @can('expenses.validate')
                                     <form method="POST" action="{{ route('expenses.validate', $expense) }}">
-                                        @csrf
+                                        @csrf @method('PATCH')
                                         <button class="btn-action-edit" title="Valider"><i class="bi bi-check-lg"></i></button>
                                     </form>
-                                    <form method="POST" action="{{ route('expenses.reject', $expense) }}">
-                                        @csrf
+                                    @endcan
+                                    @can('expenses.reject')
+                                    <form method="POST" action="{{ route('expenses.reject', $expense) }}" onsubmit="return injectRejectionReason(this)">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="rejection_reason">
                                         <button class="btn-action-delete" title="Rejeter"><i class="bi bi-x-lg"></i></button>
                                     </form>
                                     @endcan
@@ -147,7 +157,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center py-5">
+                        <td colspan="7" class="text-center py-5">
                             <div class="py-5">
                                 <i class="bi bi-receipt fs-1 opacity-25 d-block mb-3"></i>
                                 <h5 class="text-muted">Aucune dépense trouvée</h5>
@@ -165,4 +175,15 @@
         </div>
         @endif
     </div>
+
+    @push('scripts')
+    <script>
+        function injectRejectionReason(form) {
+            const reason = prompt('Motif du rejet :');
+            if (!reason || !reason.trim()) return false;
+            form.querySelector('input[name="rejection_reason"]').value = reason.trim();
+            return true;
+        }
+    </script>
+    @endpush
 </x-layouts.app>
