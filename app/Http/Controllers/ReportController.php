@@ -160,21 +160,23 @@ class ReportController extends Controller
         $year      = $request->get('year', now()->year);
         $projectId = $request->get('project_id');
 
-        $attendances = $company->attendances()
-            ->with(['employee', 'project'])
+        $query = $company->attendances()
+            ->with(['employee.jobType', 'project'])
             ->whereMonth('work_date', $month)
             ->whereYear('work_date', $year)
             ->when($projectId, fn($q) => $q->where('project_id', $projectId))
-            ->orderBy('work_date')
-            ->get();
+            ->orderBy('work_date');
 
         $projects = $company->projects()->orderBy('name')->get();
         $months   = collect(range(1, 12))->mapWithKeys(fn($m) => [$m => \Carbon\Carbon::create()->month($m)->locale('fr')->monthName]);
 
         if ($request->get('export') === 'pdf') {
+            $attendances = $query->get();
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.report-attendance', compact('attendances', 'month', 'year'));
             return $pdf->download('pointage-' . $year . '-' . $month . '.pdf');
         }
+
+        $attendances = $query->paginate(50)->withQueryString();
 
         return view('reports.attendance', compact('attendances', 'projects', 'month', 'year', 'months', 'projectId'));
     }

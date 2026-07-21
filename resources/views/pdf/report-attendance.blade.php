@@ -16,11 +16,11 @@ td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10px; }
 <tr><th>Date</th><th>Employé</th><th>Projet</th><th>Heures</th><th>Statut</th></tr>
 @foreach($attendances as $a)
 <tr>
-    <td>{{ $a->date?->format('d/m/Y') }}</td>
+    <td>{{ $a->work_date?->format('d/m/Y') }}</td>
     <td>{{ $a->employee->full_name ?? '—' }}</td>
     <td>{{ $a->project->name ?? '—' }}</td>
-    <td>{{ $a->hours ?? '—' }}</td>
-    <td>{{ ucfirst($a->status) }}</td>
+    <td>{{ $a->hours_worked ?? '—' }}</td>
+    <td>{{ $a->status_libelle }}</td>
 </tr>
 @endforeach
 </table>

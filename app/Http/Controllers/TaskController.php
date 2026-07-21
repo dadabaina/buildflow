@@ -152,6 +152,12 @@ class TaskController extends Controller
     {
         $projectId = $task->project_id;
         $title = $task->title;
+
+        // Détacher les dépenses de la tâche (elles restent rattachées au chantier) :
+        // Task utilise SoftDeletes, donc la contrainte nullOnDelete() de la FK ne se
+        // déclenche jamais sur un simple $task->delete() — on le fait explicitement.
+        $task->expenses()->update(['task_id' => null]);
+
         $task->delete();
 
         \App\Models\ProjectLog::log(

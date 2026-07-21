@@ -7,6 +7,7 @@ $navItems = [
     ['route' => 'settings.expense_categories.index','icon'=> 'bi-tags',            'label' => 'Catégories dépenses'],
     ['route' => 'settings.salary_rates.index',     'icon' => 'bi-currency-dollar', 'label' => 'Grille salariale'],
     ['route' => 'settings.material_categories.index','icon'=> 'bi-boxes',          'label' => 'Catégories matériaux'],
+    ['route' => 'settings.notification_emails.index','icon'=> 'bi-envelope',       'label' => 'Notifications par email'],
 ];
 @endphp
 

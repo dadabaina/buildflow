@@ -117,13 +117,28 @@ class AmendmentController extends Controller
         if ($amendment->status !== 'envoye') {
             return back()->with('error', 'Seul un avenant envoyé peut être accepté.');
         }
-        $amendment->update(['status' => 'accepte']);
 
-        \App\Models\ProjectLog::log(
-            $amendment->project_id,
-            'amendment_accepted',
-            "L'avenant {$amendment->reference} a été accepté."
-        );
+        DB::transaction(function () use ($amendment) {
+            $amendment->update(['status' => 'accepte']);
+
+            // Le montant de l'avenant s'ajoute au marché, comme un devis accepté
+            // sur un chantier existant (peut être négatif si l'avenant est une déduction).
+            $project = $amendment->project;
+            $oldContract = (float) $project->contract_amount;
+            $newContract = $oldContract + (float) $amendment->total_ttc;
+            $project->update(['contract_amount' => $newContract]);
+
+            \App\Models\ProjectLog::log(
+                $amendment->project_id,
+                'amendment_accepted',
+                sprintf(
+                    "L'avenant %s a été accepté. Montant du marché porté de %s à %s Ar.",
+                    $amendment->reference,
+                    number_format($oldContract, 0, ',', ' '),
+                    number_format($newContract, 0, ',', ' ')
+                )
+            );
+        });
 
         return back()->with('success', 'Avenant accepté.');
     }

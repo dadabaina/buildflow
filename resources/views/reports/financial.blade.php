@@ -138,6 +138,10 @@
     </style>
     @endpush
 
+    @php
+        $monthlyRevenueByMonth = array_values(array_replace(array_fill(1, 12, 0), $monthly->toArray()));
+        $monthlyExpensesByMonth = array_values(array_replace(array_fill(1, 12, 0), $expenses->toArray()));
+    @endphp
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
@@ -145,10 +149,10 @@
             var options = {
                 series: [{
                     name: 'Chiffre d\'Affaires',
-                    data: @json(array_values(array_replace(array_fill(1, 12, 0), $monthly->toArray())))
+                    data: @json($monthlyRevenueByMonth)
                 }, {
                     name: 'Dépenses Validées',
-                    data: @json(array_values(array_replace(array_fill(1, 12, 0), $expenses->toArray())))
+                    data: @json($monthlyExpensesByMonth)
                 }],
                 chart: {
                     type: 'area',

@@ -105,6 +105,16 @@ class Company extends Model
         return $this->hasMany(Amendment::class);
     }
 
+    public function mailSettings()
+    {
+        return $this->hasOne(CompanyMailSettings::class);
+    }
+
+    public function notificationEmailSettings()
+    {
+        return $this->hasMany(NotificationEmailSetting::class);
+    }
+
     /**
      * Référence devis suivante (DEV-0001, ...). À appeler dans une transaction :
      * le lockForUpdate empêche deux créations simultanées d'obtenir le même numéro.

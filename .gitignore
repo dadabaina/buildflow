@@ -19,6 +19,10 @@ yarn-error.log
 BuildFlow.zip
 /modèle_dbe.pdf
 /documents
+/fix_breadcrumbs.py
+/reunion.txt
+/Capture d’écran*.png
+*.bak
 /.fleet
 /.idea
 /.nova

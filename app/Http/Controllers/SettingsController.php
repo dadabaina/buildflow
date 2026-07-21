@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NotificationDigestMail;
+use App\Models\CompanyMailSettings;
 use App\Models\ExpenseCategory;
 use App\Models\JobCategory;
 use App\Models\JobType;
 use App\Models\MaterialCategory;
+use App\Models\NotificationEmailSetting;
 use App\Models\Region;
 use App\Models\SalaryRate;
 use App\Models\UnitType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 
 class SettingsController extends Controller
 {
@@ -67,6 +74,140 @@ class SettingsController extends Controller
     {
         $materialCategories = Auth::user()->company->materialCategories()->orderBy('name')->get();
         return view('settings.material-categories', compact('materialCategories'));
+    }
+
+    // -- Notifications par email --
+    public function notificationEmailsIndex()
+    {
+        $company = Auth::user()->company;
+        $existing = $company->notificationEmailSettings()->get()->keyBy('notification_type');
+
+        $types = collect(NotificationEmailSetting::TYPES)->map(fn ($label, $type) => [
+            'type'         => $type,
+            'label'        => $label,
+            'emails'       => $existing[$type]->emails ?? [],
+            'setting_id'   => $existing[$type]->id ?? null,
+        ])->values();
+
+        $mailSettings = $company->mailSettings;
+
+        return view('settings.notification-emails', compact('types', 'mailSettings'));
+    }
+
+    // -- Configuration SMTP de la société --
+    public function updateMailSettings(Request $request)
+    {
+        $data = $request->validate([
+            'is_enabled'   => ['nullable', 'boolean'],
+            'host'         => ['required_if:is_enabled,1', 'nullable', 'string', 'max:255'],
+            'port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'username'     => ['nullable', 'string', 'max:255'],
+            'password'     => ['nullable', 'string', 'max:255'],
+            'encryption'   => ['nullable', 'in:tls,ssl,'],
+            'from_address' => ['nullable', 'email', 'max:255'],
+            'from_name'    => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $company = Auth::user()->company;
+
+        // Requête directe (pas $company->mailSettings) : la relation hasOne peut avoir été
+        // mise en cache comme "absente" sur cette instance avant que la ligne existe.
+        $settings = CompanyMailSettings::where('company_id', $company->id)->first()
+            ?? new CompanyMailSettings(['company_id' => $company->id]);
+
+        $settings->fill([
+            'is_enabled'   => $request->boolean('is_enabled'),
+            'host'         => $data['host'] ?? null,
+            'port'         => $data['port'] ?? null,
+            'username'     => $data['username'] ?? null,
+            'encryption'   => $data['encryption'] ?? null,
+            'from_address' => $data['from_address'] ?? null,
+            'from_name'    => $data['from_name'] ?? null,
+        ]);
+
+        // On ne remplace le mot de passe que si un nouveau a été saisi :
+        // le champ est laissé vide côté formulaire pour ne pas exposer la valeur existante.
+        if (!empty($data['password'])) {
+            $settings->password = $data['password'];
+        }
+
+        $settings->save();
+
+        return redirect()->route('settings.notification_emails.index')
+            ->with('success', 'Configuration SMTP mise à jour.');
+    }
+
+    public function testMailSettings(Request $request)
+    {
+        $company = Auth::user()->company;
+        $settings = CompanyMailSettings::where('company_id', $company->id)->first();
+
+        if (!$settings || !$settings->host) {
+            return back()->with('error', 'Enregistrez d\'abord une configuration SMTP avant de la tester.');
+        }
+
+        $mailable = new NotificationDigestMail(
+            $company,
+            'Test de configuration SMTP',
+            new Collection([[
+                'title'   => 'Email de test',
+                'message' => 'Si vous recevez cet email, votre configuration SMTP fonctionne correctement.',
+                'url'     => route('settings.notification_emails.index'),
+            ]]),
+            Carbon::now(),
+        );
+
+        try {
+            // Le test doit pouvoir s'exécuter même si "activer" n'est pas encore coché,
+            // pour permettre de vérifier la config avant de l'activer réellement.
+            $name = 'company_' . $company->id . '_test';
+            Config::set("mail.mailers.{$name}", [
+                'transport'  => 'smtp',
+                'host'       => $settings->host,
+                'port'       => $settings->port ?: 587,
+                'encryption' => $settings->encryption ?: null,
+                'username'   => $settings->username,
+                'password'   => $settings->password,
+                'timeout'    => 10,
+            ]);
+
+            Mail::mailer($name)->to(Auth::user()->email)->send($mailable);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Échec de l\'envoi : ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Email de test envoyé à ' . Auth::user()->email . '.');
+    }
+
+    public function storeNotificationEmail(Request $request)
+    {
+        $request->validate([
+            'notification_type' => ['required', 'in:' . implode(',', array_keys(NotificationEmailSetting::TYPES))],
+            'email'              => ['required', 'email', 'max:255'],
+        ]);
+
+        $company = Auth::user()->company;
+        $setting = $company->notificationEmailSettings()->firstOrNew(['notification_type' => $request->notification_type]);
+        $emails  = $setting->emails ?? [];
+
+        if (!in_array($request->email, $emails, true)) {
+            $emails[] = $request->email;
+        }
+        $setting->emails = $emails;
+        $setting->save();
+
+        return back()->with('success', 'Adresse email ajoutée.');
+    }
+
+    public function destroyNotificationEmail(Request $request, NotificationEmailSetting $notificationEmailSetting)
+    {
+        abort_if($notificationEmailSetting->company_id !== Auth::user()->company_id, 403);
+        $request->validate(['email' => ['required', 'email']]);
+
+        $notificationEmailSetting->emails = array_values(array_diff($notificationEmailSetting->emails ?? [], [$request->email]));
+        $notificationEmailSetting->save();
+
+        return back()->with('success', 'Adresse email retirée.');
     }
 
     public function updateCompany(Request $request)

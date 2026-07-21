@@ -133,6 +133,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::resource('invoices', InvoiceController::class);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'markSent'])
         ->name('invoices.send');
+    Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])
+        ->name('invoices.cancel');
     Route::post('invoices/{invoice}/items', [InvoiceController::class, 'addItem'])
         ->name('invoices.items.add');
     Route::delete('invoices/{invoice}/items/{item}', [InvoiceController::class, 'removeItem'])
@@ -164,6 +166,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::get('/settings/material-categories', [SettingsController::class, 'materialCategoriesIndex'])->name('settings.material_categories.index');
     Route::post('/settings/material-categories', [SettingsController::class, 'storeMaterialCategory'])->name('settings.material_categories.store');
     Route::delete('/settings/material-categories/{materialCategory}', [SettingsController::class, 'destroyMaterialCategory'])->name('settings.material_categories.destroy');
+    Route::get('/settings/notification-emails', [SettingsController::class, 'notificationEmailsIndex'])->name('settings.notification_emails.index');
+    Route::post('/settings/notification-emails', [SettingsController::class, 'storeNotificationEmail'])->name('settings.notification_emails.store');
+    Route::delete('/settings/notification-emails/{notificationEmailSetting}', [SettingsController::class, 'destroyNotificationEmail'])->name('settings.notification_emails.destroy');
+    Route::post('/settings/mail', [SettingsController::class, 'updateMailSettings'])->name('settings.mail.update');
+    Route::post('/settings/mail/test', [SettingsController::class, 'testMailSettings'])->name('settings.mail.test');
 
     // Utilisateurs
     Route::resource('users', UserController::class);

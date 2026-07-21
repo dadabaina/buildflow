@@ -79,7 +79,7 @@ class ProjectController extends Controller
             'purchaseOrders' => fn($q) => $q->with('supplier')->latest()->take(10),
             'tasks'          => fn($q) => $q->with(['employees', 'quoteItem'])
                 ->withSum(['expenses as validated_expenses_total' => fn($q2) => $q2->where('status', 'validee')], 'total_amount')
-                ->orderBy('sort_order')->orderBy('id')->take(20),
+                ->orderBy('sort_order')->orderBy('id'),
             'attendances'    => fn($q) => $q->with('employee')->orderBy('work_date', 'desc')->take(30),
             'documents'      => fn($q) => $q->with('uploadedBy')->latest()->take(20),
             'warehouses',
@@ -138,9 +138,9 @@ class ProjectController extends Controller
             'company_id'   => $project->company_id,
             'equipment_id' => $equipment->id,
             'start_date'   => $validated['start_date'],
-            'end_date'     => $validated['end_date'],
+            'end_date'     => $validated['end_date'] ?? null,
             'daily_cost'   => $equipment->daily_rental_cost ?? 0,
-            'notes'        => $validated['notes'],
+            'notes'        => $validated['notes'] ?? null,
         ]);
 
         $equipment->update(['status' => 'affecte']);

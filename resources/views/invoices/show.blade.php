@@ -58,6 +58,16 @@
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                     <li><a class="dropdown-item py-2" href="#"><i class="bx bx-printer me-2 text-muted"></i> Imprimer</a></li>
                                     <li><a class="dropdown-item py-2" href="#"><i class="bx bx-file me-2 text-muted"></i> Télécharger PDF</a></li>
+                                    @can('invoices.edit')
+                                        @if(!in_array($invoice->status, ['soldee', 'annulee']))
+                                            <li>
+                                                <form method="POST" action="{{ route('invoices.cancel', $invoice) }}" onsubmit="return confirm('Annuler cette facture ?')">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item py-2 text-warning"><i class="bx bx-block me-2"></i> Annuler la facture</button>
+                                                </form>
+                                            </li>
+                                        @endif
+                                    @endcan
                                     @can('invoices.delete')
                                         <li><hr class="dropdown-divider"></li>
                                         <li>

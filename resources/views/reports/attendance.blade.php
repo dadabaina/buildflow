@@ -65,13 +65,13 @@
                             </td>
                             <td>
                                 <div class="fw-bold text-dark">{{ $a->employee->full_name ?? '—' }}</div>
-                                <small class="text-muted small">{{ $a->employee->job_title ?? 'Ouvrier' }}</small>
+                                <small class="text-muted small">{{ $a->employee->jobType->name ?? 'Ouvrier' }}</small>
                             </td>
                             <td>
                                 <span class="text-muted small">{{ $a->project->name ?? '—' }}</span>
                             </td>
                             <td>
-                                <span class="badge bg-label-info">{{ $a->hours ?? 0 }}h</span>
+                                <span class="badge bg-label-info">{{ $a->hours_worked ?? 0 }}h</span>
                             </td>
                             <td class="pe-4">
                                 <span class="badge {{ $a->status === 'present' ? 'bg-label-success' : ($a->status === 'absent' ? 'bg-label-danger' : 'bg-label-warning') }} text-uppercase" style="font-size: 0.7rem;">

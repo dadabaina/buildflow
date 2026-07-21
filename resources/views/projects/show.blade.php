@@ -178,7 +178,7 @@
     </div>
 
     {{-- Main Content & Tabs --}}
-    <div x-data="{ activeTab: 'infos', expenseTaskFilter: '' }">
+    <div x-data="{ activeTab: '{{ request('tab', 'infos') }}', expenseTaskFilter: '' }">
         <div class="card border-0 shadow-sm-app rounded-4 mb-4 bg-white">
             <div class="card-body p-2">
                 <ul id="tour-project-tabs" class="nav nav-pills nav-justified gap-1 flex-wrap project-nav-tabs">
