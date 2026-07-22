@@ -115,8 +115,8 @@
 
                             <div class="col-md-4">
                                 <label class="form-label">Date de fin prévue</label>
-                                <input type="date" name="end_date" class="form-control"
-                                       value="{{ old('end_date', isset($project) ? $project->end_date?->format('Y-m-d') : '') }}">
+                                <input type="date" name="planned_end_date" class="form-control"
+                                       value="{{ old('planned_end_date', isset($project) ? $project->planned_end_date?->format('Y-m-d') : '') }}">
                             </div>
 
                             <div class="col-md-4">

@@ -22,16 +22,17 @@ import { startCurrentPageTour, hasTourForCurrentPage } from './help-tours';
 document.addEventListener('DOMContentLoaded', () => {
     const helpBtn = document.getElementById('help-launch-btn');
     if (helpBtn) {
-        if (!hasTourForCurrentPage()) {
-            helpBtn.classList.add('disabled');
-            helpBtn.title = "Aucun guide disponible sur cette page";
+        // L'icône reste toujours cliquable : elle mène au centre d'aide (/aide) par défaut.
+        // Si un guide interactif existe pour la page en cours, il se lance à la place.
+        if (hasTourForCurrentPage()) {
+            helpBtn.title = "Lancer le guide de cette page";
+            helpBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                startCurrentPageTour();
+            });
+        } else {
+            helpBtn.title = "Centre d'aide";
         }
-        helpBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (!startCurrentPageTour()) {
-                window.location.href = helpBtn.dataset.hubUrl;
-            }
-        });
     }
 
     // Lancement automatique depuis la page hub /aide (?tour=1)
