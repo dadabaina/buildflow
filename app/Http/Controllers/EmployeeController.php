@@ -7,6 +7,8 @@ use App\Models\JobType;
 use App\Models\Region;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Laravel\Facades\Image;
 
 class EmployeeController extends Controller
 {
@@ -57,21 +59,25 @@ class EmployeeController extends Controller
     {
         $validated = $this->validateEmployee($request);
         $jobTypeIds = $validated['job_type_ids'] ?? [];
-        
+
         if (!empty($validated['job_type_id']) && !in_array($validated['job_type_id'], $jobTypeIds)) {
             $jobTypeIds[] = $validated['job_type_id'];
         }
 
-        unset($validated['job_type_ids']);
-        
+        unset($validated['job_type_ids'], $validated['photo']);
+
+        if ($request->hasFile('photo')) {
+            $validated['photo_path'] = $this->uploadAndProcessPhoto($request->file('photo'));
+        }
+
         $employee = Employee::create($validated);
         $employee->jobTypes()->sync($jobTypeIds);
-        
+
         return redirect()->route('employees.index')
             ->with('success', 'Employé créé.');
     }
 
-    public function show(Employee $employee)
+    public function show(Employee $employee, Request $request)
     {
         $employee->load([
             'jobTypes',
@@ -90,7 +96,15 @@ class EmployeeController extends Controller
         // Estimation gains (si journalier)
         $stats['total_earned'] = $stats['total_days'] * ($employee->daily_rate ?? 0);
 
-        return view('employees.show', compact('employee', 'stats'));
+        $year = (int) $request->get('year', now()->year);
+        $monthlyHours = $employee->attendances()
+            ->selectRaw('MONTH(work_date) as month, SUM(hours_worked) as total')
+            ->whereYear('work_date', $year)
+            ->groupBy('month')
+            ->pluck('total', 'month');
+        $years = range(now()->year, now()->year - 4);
+
+        return view('employees.show', compact('employee', 'stats', 'monthlyHours', 'year', 'years'));
     }
 
     public function edit(Employee $employee)
@@ -110,7 +124,15 @@ class EmployeeController extends Controller
             $jobTypeIds[] = $validated['job_type_id'];
         }
 
-        unset($validated['job_type_ids']);
+        unset($validated['job_type_ids'], $validated['photo']);
+
+        // Un champ photo vide = on garde la photo actuelle (comme partout ailleurs dans l'app).
+        if ($request->hasFile('photo')) {
+            if ($employee->photo_path) {
+                Storage::disk('public')->delete($employee->photo_path);
+            }
+            $validated['photo_path'] = $this->uploadAndProcessPhoto($request->file('photo'));
+        }
 
         $employee->update($validated);
         $employee->jobTypes()->sync($jobTypeIds);
@@ -134,11 +156,30 @@ class EmployeeController extends Controller
             ->with('success', 'Employé restauré.');
     }
 
+    /**
+     * Redimensionne la photo en miniature carrée (300x300, recadrage centré) et
+     * l'encode en WebP pour un poids réduit — même approche que les photos de pointage.
+     */
+    private function uploadAndProcessPhoto(\Illuminate\Http\UploadedFile $file): string
+    {
+        $filename = 'employee_' . uniqid() . '.webp';
+        $path = 'employees/' . $filename;
+
+        $img = Image::read($file->getRealPath())
+            ->cover(300, 300)
+            ->toWebp(85);
+
+        Storage::disk('public')->put($path, (string) $img);
+
+        return $path;
+    }
+
     private function validateEmployee(Request $request): array
     {
         return $request->validate([
             'first_name'      => ['required', 'string', 'max:100'],
             'last_name'       => ['required', 'string', 'max:100'],
+            'photo'           => ['nullable', 'image', 'max:5120'],
             'phone'           => ['nullable', 'string', 'max:30'],
             'email'           => ['nullable', 'email', 'max:191'],
             'address'         => ['nullable', 'string', 'max:500'],

@@ -13,7 +13,7 @@ class Employee extends Model
 
     protected $fillable = [
         'company_id', 'job_type_id', 'region_id', 'supplier_id',
-        'matricule', 'first_name', 'last_name', 'email', 'phone',
+        'matricule', 'first_name', 'last_name', 'photo_path', 'email', 'phone',
         'address', 'birth_date', 'hire_date', 'end_date',
         'contract_type', 'daily_rate', 'monthly_salary', 'rib', 'notes', 'is_active',
     ];
@@ -67,6 +67,11 @@ class Employee extends Model
     public function getFullNameAttribute(): string
     {
         return $this->first_name . ' ' . $this->last_name;
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo_path ? asset('storage/' . $this->photo_path) : null;
     }
 
     public function getContractTypeLibelleAttribute(): string

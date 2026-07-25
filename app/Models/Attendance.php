@@ -12,13 +12,14 @@ class Attendance extends Model
 
     protected $fillable = [
         'company_id', 'project_id', 'employee_id', 'created_by',
-        'work_date', 'photo_path', 'check_in', 'check_out',
+        'work_date', 'photo_path', 'check_in', 'check_out', 'break_hours',
         'hours_worked', 'days_worked', 'status',
         'latitude', 'longitude', 'notes',
     ];
 
     protected $casts = [
         'work_date'    => 'date',
+        'break_hours'  => 'decimal:2',
         'hours_worked' => 'decimal:2',
         'days_worked'  => 'decimal:2',
         'latitude'     => 'decimal:7',

@@ -65,6 +65,11 @@ class Quote extends Model
         return $this->hasMany(QuoteItem::class)->orderBy('sort_order');
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     public function generateClientToken(): void
     {
         $this->update(['client_token' => Str::random(64)]);

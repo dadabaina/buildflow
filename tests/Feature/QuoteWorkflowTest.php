@@ -183,21 +183,24 @@ class QuoteWorkflowTest extends RecetteTestCase
         $this->assertSame(2, $quote->fresh()->version, 'DEV-19 : version incrémentée après modification d\'un devis envoyé');
     }
 
-    /** DEV-21, DEV-22 : conversion en facture + garde anti-double-facturation */
+    /** DEV-21, DEV-22 : la facture est générée automatiquement à l'acceptation + garde anti-double-facturation */
     public function test_dev_21_22_conversion_facture_et_anti_doublon(): void
     {
         $company = $this->makeCompany();
         $this->actingAsCompanyUser($company);
         $quote = $this->createDraftQuote($company);
         $this->addItem($quote, 100000);
+
         $this->post(route('quotes.accept', $quote));
         $quote->refresh();
 
-        $resp = $this->post(route('quotes.convert', $quote));
+        // DEV-21 : l'acceptation du devis génère automatiquement la facture correspondante
         $this->assertSame(1, Invoice::where('quote_id', $quote->id)->count());
         $invoice = Invoice::where('quote_id', $quote->id)->first();
-        $resp->assertRedirect(route('invoices.show', $invoice));
+        $this->assertEquals($quote->total_ttc, $invoice->total_ttc);
+        $this->assertSame($quote->project_id, $invoice->project_id);
 
+        // DEV-22 : une conversion manuelle explicite ne crée pas de doublon
         $this->post(route('quotes.convert', $quote));
         $this->assertSame(1, Invoice::where('quote_id', $quote->id)->count(), 'DEV-22 : pas de 2e facture');
     }

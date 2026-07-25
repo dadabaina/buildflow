@@ -21,12 +21,13 @@
                       x-data="{
                           checkIn: '{{ old('check_in', isset($attendance) && $attendance->check_in ? substr($attendance->check_in, 0, 5) : '') }}',
                           checkOut: '{{ old('check_out', isset($attendance) && $attendance->check_out ? substr($attendance->check_out, 0, 5) : '') }}',
+                          breakHours: '{{ old('break_hours', $attendance->break_hours ?? '') }}',
                           photoPreview: '{{ isset($attendance) && $attendance->photo_path ? asset('storage/' . $attendance->photo_path) : '' }}',
                           get hours() {
                               if(!this.checkIn || !this.checkOut) return '';
                               const [h1,m1] = this.checkIn.split(':').map(Number);
                               const [h2,m2] = this.checkOut.split(':').map(Number);
-                              const mins = (h2*60+m2) - (h1*60+m1);
+                              const mins = (h2*60+m2) - (h1*60+m1) - (parseFloat(this.breakHours) || 0) * 60;
                               return mins > 0 ? (mins/60).toFixed(2) : '';
                           },
                           get days() {
@@ -115,19 +116,25 @@
 
                             <div class="col-12"><hr class="my-1"><small class="text-muted">Optionnel : saisir les heures pour calcul automatique</small></div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Heure d'arrivée</label>
                                 <input type="time" name="check_in" class="form-control @error('check_in') is-invalid @enderror"
                                        x-model="checkIn">
                                 @error('check_in')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">Heure de départ</label>
                                 <input type="time" name="check_out" class="form-control @error('check_out') is-invalid @enderror"
                                        x-model="checkOut">
                                 @error('check_out')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label">Pause déjeuner (Heures)</label>
+                                <input type="number" name="break_hours" class="form-control @error('break_hours') is-invalid @enderror"
+                                       x-model="breakHours" step="0.25" min="0" max="12" placeholder="1">
+                                @error('break_hours')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label">Heures calculées</label>
                                 <div class="form-control-plaintext fw-semibold text-primary" x-text="hours ? hours + 'h' : '—'"></div>
                                 <input type="hidden" name="hours_worked" :value="hours">

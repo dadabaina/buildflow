@@ -16,11 +16,40 @@
                 </div>
                 <div class="card-body">
                     <form method="POST"
-                          action="{{ isset($employee) ? route('employees.update', $employee) : route('employees.store') }}">
+                          action="{{ isset($employee) ? route('employees.update', $employee) : route('employees.store') }}"
+                          enctype="multipart/form-data"
+                          x-data="{
+                              photoPreview: '{{ isset($employee) && $employee->photo_url ? $employee->photo_url : '' }}',
+                              handlePhoto(e) {
+                                  const file = e.target.files[0];
+                                  if (file) { this.photoPreview = URL.createObjectURL(file); }
+                              }
+                          }">
                         @csrf
                         @isset($employee) @method('PATCH') @endisset
 
                         <div class="row g-3">
+                            <div class="col-12 text-center mb-2">
+                                <div class="mx-auto border rounded-circle bg-light d-flex align-items-center justify-content-center overflow-hidden"
+                                     style="width: 110px; height: 110px; cursor: pointer;"
+                                     onclick="document.getElementById('photo-input').click()">
+                                    <template x-if="photoPreview">
+                                        <img :src="photoPreview" class="w-100 h-100" style="object-fit: cover;">
+                                    </template>
+                                    <template x-if="!photoPreview">
+                                        <div class="text-center p-2">
+                                            <i class="bx bx-camera fs-2 opacity-50"></i>
+                                            <p class="small text-muted mb-0" style="font-size: 0.65rem;">Photo</p>
+                                        </div>
+                                    </template>
+                                </div>
+                                {{-- capture="user" : ouvre l'appareil photo (caméra frontale) sur mobile, le sélecteur de fichier sur ordinateur. --}}
+                                <input type="file" name="photo" id="photo-input" class="d-none"
+                                       accept="image/*" capture="user" @change="handlePhoto">
+                                <div class="small text-muted mt-1" style="font-size: 0.7rem;">Cliquez pour choisir une photo ou la prendre avec l'appareil photo (mobile)</div>
+                                @error('photo')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            </div>
+
                             <div class="col-md-6">
                                 <label class="form-label">Prénom <span class="text-danger">*</span></label>
                                 <input type="text" name="first_name"

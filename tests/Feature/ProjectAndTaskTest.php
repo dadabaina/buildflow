@@ -199,6 +199,26 @@ class ProjectAndTaskTest extends RecetteTestCase
         $this->assertDatabaseHas('expenses', ['id' => $expense->id, 'deleted_at' => null]);
     }
 
+    /** CHA-09bis : la photo de l'employé (si définie) apparaît dans l'onglet Équipe du chantier */
+    public function test_cha_09bis_photo_employe_dans_equipe_chantier(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAsCompanyUser($company);
+        $project = $this->makeProject($company);
+
+        $sansPhoto = Employee::create(['company_id' => $company->id, 'first_name' => 'Jean', 'last_name' => 'Sans Photo']);
+        $avecPhoto = Employee::create(['company_id' => $company->id, 'first_name' => 'Marie', 'last_name' => 'Avec Photo', 'photo_path' => 'employees/test.webp']);
+        $project->employees()->sync([$sansPhoto->id, $avecPhoto->id]);
+
+        $page = $this->get(route('projects.show', ['project' => $project->id, 'tab' => 'team']));
+        $page->assertOk();
+
+        // Avec photo : une balise <img> pointant vers le fichier stocké.
+        $page->assertSee('src="' . asset('storage/employees/test.webp') . '"', false);
+        // Sans photo : repli sur les initiales, comme avant.
+        $page->assertSee('JS'); // initiales de "Jean" "Sans Photo"
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private function makeProject($company, array $attrs = []): Project

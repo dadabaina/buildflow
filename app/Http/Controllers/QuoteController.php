@@ -98,7 +98,7 @@ class QuoteController extends Controller
     public function show(Quote $quote)
     {
         $this->authorizeQuote($quote);
-        $quote->load(['project', 'client', 'sections.items', 'items', 'createdBy']);
+        $quote->load(['project', 'client', 'sections.items', 'items', 'createdBy', 'invoice']);
         $company      = Auth::user()->company;
         $unitTypes    = $company->unitTypes()->where('is_active', true)->orderBy('name')->get();
         $dosageModels = $company->dosageModels()->where('is_active', true)->orderBy('name')->get();
@@ -199,11 +199,30 @@ class QuoteController extends Controller
             return back()->with('error', 'Ce devis n\'est lié à aucun chantier.');
         }
 
-        if (Invoice::where('quote_id', $quote->id)->exists()) {
-            return back()->with('error', 'Ce devis a déjà été converti en facture.');
+        try {
+            $invoice = DB::transaction(fn () => $this->generateInvoiceFromQuote($quote));
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $quote->load(['items', 'project']);
+        return redirect()->route('invoices.show', $invoice)
+            ->with('success', 'Facture générée depuis le devis.');
+    }
+
+    /**
+     * Crée la facture correspondant à un devis accepté (lignes + remise globale).
+     * Utilisé aussi bien par la conversion manuelle (convertToInvoice) que par
+     * la facturation automatique déclenchée à l'acceptation du devis
+     * (activateAcceptedQuote). Lève une RuntimeException si la facture ne peut
+     * pas être générée (déjà facturé, dépassement du montant du marché...).
+     */
+    private function generateInvoiceFromQuote(Quote $quote): Invoice
+    {
+        if (Invoice::where('quote_id', $quote->id)->exists()) {
+            throw new \RuntimeException('Ce devis a déjà été converti en facture.');
+        }
+
+        $quote->loadMissing(['items', 'project']);
 
         // Garde anti-dépassement du marché : conversion directe + situations de
         // travaux ne doivent pas facturer plus que le montant contractuel.
@@ -213,7 +232,7 @@ class QuoteController extends Controller
             ->sum('total_ttc');
 
         if ($contractAmount > 0 && $alreadyInvoiced + (float) $quote->total_ttc > $contractAmount + 0.01) {
-            return back()->with('error', sprintf(
+            throw new \RuntimeException(sprintf(
                 'Conversion impossible : %s Ar déjà facturés sur ce chantier (situations comprises), facturer ce devis (%s Ar) dépasserait le montant du marché (%s Ar).',
                 number_format($alreadyInvoiced, 0, ',', ' '),
                 number_format((float) $quote->total_ttc, 0, ',', ' '),
@@ -221,70 +240,67 @@ class QuoteController extends Controller
             ));
         }
 
-        return DB::transaction(function () use ($quote) {
-            $company = Auth::user()->company;
+        $company = $quote->company;
 
-            $rgRate   = (float) ($quote->project->rg_rate ?? 0);
-            $rgAmount = round((float) $quote->total_ttc * $rgRate / 100, 2);
-            $netToPay = $quote->total_ttc - $rgAmount;
+        $rgRate   = (float) ($quote->project->rg_rate ?? 0);
+        $rgAmount = round((float) $quote->total_ttc * $rgRate / 100, 2);
+        $netToPay = $quote->total_ttc - $rgAmount;
 
-            $invoice = $company->invoices()->create([
-                'project_id'       => $quote->project_id,
-                'client_id'        => $quote->client_id,
-                'quote_id'         => $quote->id,
-                'created_by'       => Auth::id(),
-                'reference'        => $company->nextInvoiceReference(),
-                'title'            => $quote->title,
-                'type'             => 'standard',
-                'invoice_date'     => now(),
-                'due_date'         => now()->addDays(30),
-                'tva_rate'         => $quote->tva_rate,
-                'rg_rate'          => $rgRate,
-                'subtotal_ht'      => $quote->taxable_ht,
-                'tva_amount'       => $quote->tva_amount,
-                'total_ttc'        => $quote->total_ttc,
-                'rg_amount'        => $rgAmount,
-                'net_to_pay'       => $netToPay,
-                'amount_paid'      => 0,
-                'amount_remaining' => $netToPay,
-                'status'           => 'brouillon',
+        $invoice = $company->invoices()->create([
+            'project_id'       => $quote->project_id,
+            'client_id'        => $quote->client_id,
+            'quote_id'         => $quote->id,
+            'created_by'       => Auth::id() ?? $quote->created_by,
+            'reference'        => $company->nextInvoiceReference(),
+            'title'            => $quote->title,
+            'type'             => 'standard',
+            'invoice_date'     => now(),
+            'due_date'         => now()->addDays(30),
+            'tva_rate'         => $quote->tva_rate,
+            'rg_rate'          => $rgRate,
+            'subtotal_ht'      => $quote->taxable_ht,
+            'tva_amount'       => $quote->tva_amount,
+            'total_ttc'        => $quote->total_ttc,
+            'rg_amount'        => $rgAmount,
+            'net_to_pay'       => $netToPay,
+            'amount_paid'      => 0,
+            'amount_remaining' => $netToPay,
+            'status'           => 'brouillon',
+        ]);
+
+        foreach ($quote->items as $item) {
+            $invoice->items()->create([
+                'description' => $item->description,
+                'unit'        => $item->unit,
+                'quantity'    => $item->quantity,
+                'unit_price'  => $item->unit_price,
+                'total_ht'    => $item->total_ht,
+                'sort_order'  => $item->sort_order,
             ]);
+        }
 
-            foreach ($quote->items as $item) {
-                $invoice->items()->create([
-                    'description' => $item->description,
-                    'unit'        => $item->unit,
-                    'quantity'    => $item->quantity,
-                    'unit_price'  => $item->unit_price,
-                    'total_ht'    => $item->total_ht,
-                    'sort_order'  => $item->sort_order,
-                ]);
-            }
+        // La remise globale du devis devient une ligne négative : la somme des
+        // lignes reste égale au sous-total HT de l'en-tête (taxable_ht), même
+        // après un recalcul de la facture.
+        if ((float) $quote->discount_amount > 0) {
+            $invoice->items()->create([
+                'description' => $quote->discount_type === 'percent'
+                    ? "Remise globale ({$quote->discount_global}%)"
+                    : 'Remise globale',
+                'quantity'    => 1,
+                'unit_price'  => -$quote->discount_amount,
+                'total_ht'    => -$quote->discount_amount,
+                'sort_order'  => ((int) $quote->items->max('sort_order')) + 1,
+            ]);
+        }
 
-            // La remise globale du devis devient une ligne négative : la somme des
-            // lignes reste égale au sous-total HT de l'en-tête (taxable_ht), même
-            // après un recalcul de la facture.
-            if ((float) $quote->discount_amount > 0) {
-                $invoice->items()->create([
-                    'description' => $quote->discount_type === 'percent'
-                        ? "Remise globale ({$quote->discount_global}%)"
-                        : 'Remise globale',
-                    'quantity'    => 1,
-                    'unit_price'  => -$quote->discount_amount,
-                    'total_ht'    => -$quote->discount_amount,
-                    'sort_order'  => ((int) $quote->items->max('sort_order')) + 1,
-                ]);
-            }
+        \App\Models\ProjectLog::log(
+            $quote->project_id,
+            'quote_invoiced',
+            "Le devis {$quote->reference} a été converti en facture {$invoice->reference}."
+        );
 
-            \App\Models\ProjectLog::log(
-                $quote->project_id,
-                'quote_invoiced',
-                "Le devis {$quote->reference} a été converti en facture {$invoice->reference}."
-            );
-
-            return redirect()->route('invoices.show', $invoice)
-                ->with('success', 'Facture générée depuis le devis.');
-        });
+        return $invoice;
     }
 
     public function generateTasks(Quote $quote)
@@ -360,6 +376,20 @@ class QuoteController extends Controller
                 ? "Le client a accepté le devis {$quote->reference} via le portail public. {$detail}, tâches générées."
                 : "Le devis {$quote->reference} a été accepté. {$detail}, tâches générées."
         );
+
+        // Facturation automatique : un devis accepté doit générer sa facture.
+        // En cas d'impossibilité (garde anti-dépassement du marché...), on ne
+        // bloque pas l'acceptation : la facturation reste possible manuellement
+        // depuis la fiche du devis, et la raison est tracée dans les logs.
+        try {
+            $this->generateInvoiceFromQuote($quote);
+        } catch (\RuntimeException $e) {
+            \App\Models\ProjectLog::log(
+                $quote->project_id,
+                'quote_invoice_skipped',
+                "Facturation automatique impossible pour le devis {$quote->reference} : {$e->getMessage()}"
+            );
+        }
     }
 
     /**

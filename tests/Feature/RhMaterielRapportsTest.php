@@ -9,6 +9,8 @@ use App\Models\ReceptionReport;
 use App\Models\SiteReport;
 use App\Models\StockMovement;
 use App\Models\Warehouse;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * RH-01 à RH-04, MAT-01 à MAT-06, RPT-01 à RPT-05 du cahier de recette.
@@ -36,6 +38,90 @@ class RhMaterielRapportsTest extends RecetteTestCase
         ])->assertRedirect(route('attendances.index'));
 
         $this->assertSame(1, \App\Models\Attendance::where('employee_id', $employee->id)->count());
+    }
+
+    /** RH-01bis : photo employé — upload, redimensionnement en miniature carrée, et remplacement propre */
+    public function test_rh_01bis_photo_employe_upload_et_miniature(): void
+    {
+        Storage::fake('public');
+        $company = $this->makeCompany();
+        $this->actingAsCompanyUser($company);
+
+        // Upload initial : image large (1200x800), doit être réduite à une miniature 300x300.
+        $original = UploadedFile::fake()->image('portrait.jpg', 1200, 800);
+        $resp = $this->post(route('employees.store'), [
+            'first_name' => 'Marie', 'last_name' => 'Rasoa', 'photo' => $original,
+        ]);
+        $resp->assertRedirect();
+
+        $employee = Employee::first();
+        $this->assertNotNull($employee->photo_path);
+        $this->assertStringEndsWith('.webp', $employee->photo_path);
+        Storage::disk('public')->assertExists($employee->photo_path);
+
+        [$width, $height] = getimagesize(Storage::disk('public')->path($employee->photo_path));
+        $this->assertSame(300, $width, 'La photo doit être redimensionnée en miniature 300x300');
+        $this->assertSame(300, $height);
+
+        $firstPhotoPath = $employee->photo_path;
+
+        // Remplacement : l'ancienne miniature doit être supprimée, une nouvelle générée.
+        $this->patch(route('employees.update', $employee), [
+            'first_name' => 'Marie', 'last_name' => 'Rasoa',
+            'photo' => UploadedFile::fake()->image('nouvelle.jpg', 600, 600),
+        ])->assertRedirect(route('employees.show', $employee));
+
+        $employee->refresh();
+        $this->assertNotEquals($firstPhotoPath, $employee->photo_path);
+        Storage::disk('public')->assertMissing($firstPhotoPath);
+        Storage::disk('public')->assertExists($employee->photo_path);
+
+        // Mise à jour SANS nouvelle photo : la photo actuelle doit être conservée (pas de perte silencieuse).
+        $currentPhoto = $employee->photo_path;
+        $this->patch(route('employees.update', $employee), [
+            'first_name' => 'Marie', 'last_name' => 'Rasoa-Modifiée',
+        ])->assertRedirect(route('employees.show', $employee));
+
+        $this->assertSame($currentPhoto, $employee->fresh()->photo_path);
+    }
+
+    /** RH-01ter : la liste des pointages affiche côte à côte la photo de référence de l'employé et la photo capturée au pointage */
+    public function test_rh_01ter_liste_pointages_compare_photo_employe_et_photo_pointage(): void
+    {
+        Storage::fake('public');
+        $company = $this->makeCompany();
+        $this->actingAsCompanyUser($company);
+        $project = $this->makeProject($company);
+
+        $avecPhoto = Employee::create(['company_id' => $company->id, 'first_name' => 'Marie', 'last_name' => 'Rasoa', 'photo_path' => 'employees/marie.webp']);
+        Storage::disk('public')->put('employees/marie.webp', 'contenu-photo-employe');
+
+        $sansPhoto = Employee::create(['company_id' => $company->id, 'first_name' => 'Jean', 'last_name' => 'Rakoto']);
+
+        $attAvecCapture = \App\Models\Attendance::create([
+            'company_id' => $company->id, 'project_id' => $project->id, 'employee_id' => $avecPhoto->id,
+            'created_by' => auth()->id(), 'work_date' => now()->toDateString(), 'status' => 'present',
+            'photo_path' => 'pointages/2026/07/25/capture.webp',
+        ]);
+        Storage::disk('public')->put('pointages/2026/07/25/capture.webp', 'contenu-photo-pointage');
+
+        \App\Models\Attendance::create([
+            'company_id' => $company->id, 'project_id' => $project->id, 'employee_id' => $sansPhoto->id,
+            'created_by' => auth()->id(), 'work_date' => now()->toDateString(), 'status' => 'present',
+        ]);
+
+        $page = $this->get(route('attendances.index'));
+        $page->assertOk();
+        $page->assertSee('Photo employé');
+        $page->assertSee('Photo pointage');
+
+        // Pointage avec les deux photos : les deux <img> doivent apparaître.
+        $page->assertSee('src="' . asset('storage/employees/marie.webp') . '"', false);
+        $page->assertSee('src="' . asset('storage/pointages/2026/07/25/capture.webp') . '"', false);
+
+        // Pointage sans aucune des deux photos : repli sur les icônes, pas d'erreur.
+        $page->assertSee('bx-user small'); // repli photo employé
+        $page->assertSee('bx-camera small'); // repli photo pointage
     }
 
     /** MAT-01 : équipement loué avec décompte des jours avant restitution */

@@ -12,8 +12,12 @@
                 <div class="card-body p-0">
                     <div class="p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="avatar avatar-xl bg-primary bg-opacity-10 text-primary rounded d-flex align-items-center justify-content-center fw-bold" style="width: 64px; height: 64px; font-size: 1.5rem">
-                                {{ substr($employee->first_name, 0, 1) }}{{ substr($employee->last_name, 0, 1) }}
+                            <div class="avatar avatar-xl rounded overflow-hidden {{ $employee->photo_url ? '' : 'bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold' }}" style="width: 64px; height: 64px; font-size: 1.5rem">
+                                @if($employee->photo_url)
+                                    <img src="{{ $employee->photo_url }}" alt="{{ $employee->full_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                @else
+                                    {{ substr($employee->first_name, 0, 1) }}{{ substr($employee->last_name, 0, 1) }}
+                                @endif
                             </div>
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
@@ -228,6 +232,11 @@
                             <i class="bx bx-time-five me-2"></i> Présences
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link py-3 px-4" role="tab" data-bs-toggle="tab" data-bs-target="#tab-hours">
+                            <i class="bx bx-bar-chart-alt-2 me-2"></i> Heures / mois
+                        </button>
+                    </li>
                 </ul>
                 <div class="tab-content border-0 shadow-sm p-0 rounded-bottom overflow-hidden bg-white">
                     <!-- Projects Tab -->
@@ -307,8 +316,79 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- Monthly Hours Tab -->
+                    <div class="tab-pane fade" id="tab-hours" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center px-4 pt-4">
+                            <h6 class="mb-0 fw-bold">Heures totales par mois — {{ $year }}</h6>
+                            <form method="GET" action="{{ route('employees.show', $employee) }}">
+                                <select name="year" class="form-select form-select-sm border-0 bg-light" onchange="this.form.submit()">
+                                    @foreach($years as $y)
+                                        <option value="{{ $y }}" @selected($year == $y)>Année {{ $y }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        </div>
+                        <div class="p-4">
+                            <div id="monthlyHoursChart" style="min-height: 300px;"></div>
+                        </div>
+                        <div class="table-responsive border-top mt-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4 py-3">Mois</th>
+                                        <th class="text-end pe-4 py-3">Heures totales</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php
+                                        $monthNames = [
+                                            1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril', 5 => 'Mai', 6 => 'Juin',
+                                            7 => 'Juillet', 8 => 'Août', 9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre',
+                                        ];
+                                    @endphp
+                                    @foreach($monthNames as $idx => $name)
+                                    <tr>
+                                        <td class="ps-4">{{ $name }}</td>
+                                        <td class="text-end pe-4 fw-bold">{{ number_format($monthlyHours[$idx] ?? 0, 1, ',', ' ') }} h</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    @php
+        $monthlyHoursByMonth = array_values(array_replace(array_fill(1, 12, 0), $monthlyHours->toArray()));
+    @endphp
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var options = {
+                series: [{ name: 'Heures totales', data: @json($monthlyHoursByMonth) }],
+                chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                colors: ['#03c3ec'],
+                plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
+                dataLabels: { enabled: false },
+                xaxis: {
+                    categories: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+                },
+                yaxis: {
+                    labels: { formatter: function (value) { return value + 'h'; } }
+                },
+                tooltip: {
+                    y: { formatter: function (val) { return val + ' heures'; } }
+                }
+            };
+
+            var chart = new ApexCharts(document.querySelector("#monthlyHoursChart"), options);
+            chart.render();
+        });
+    </script>
+    @endpush
 </x-layouts.app>

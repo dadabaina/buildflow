@@ -8,7 +8,7 @@ use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 
 class AttendanceController extends Controller
 {
@@ -208,6 +208,7 @@ class AttendanceController extends Controller
             'photo'       => ['nullable', 'image', 'max:5120'],
             'check_in'    => ['nullable', 'date_format:H:i'],
             'check_out'   => ['nullable', 'date_format:H:i', 'after:check_in'],
+            'break_hours' => ['nullable', 'numeric', 'min:0', 'max:12'],
             'hours_worked'=> ['nullable', 'numeric', 'min:0', 'max:24'],
             'days_worked' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'status'      => ['required', 'in:present,absent_justifie,absent_non_justifie'],
@@ -215,17 +216,16 @@ class AttendanceController extends Controller
         ]);
     }
 
-    private function uploadAndProcessPhoto($file): string
+    private function uploadAndProcessPhoto(\Illuminate\Http\UploadedFile $file): string
     {
         $filename = 'attendance_' . uniqid() . '.webp';
         $path = 'pointages/' . now()->format('Y/m/d') . '/' . $filename;
 
-        $img = Image::make($file->getRealPath())
-            ->resize(800, 800, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            })
-            ->encode('webp', 80);
+        // scaleDown : réduit pour tenir dans 800x800 en conservant les proportions,
+        // sans jamais agrandir une image plus petite (équivalent du "upsize" v2).
+        $img = Image::read($file->getRealPath())
+            ->scaleDown(800, 800)
+            ->toWebp(80);
 
         Storage::disk('public')->put($path, (string) $img);
 
@@ -238,6 +238,7 @@ class AttendanceController extends Controller
             [$h1, $m1] = explode(':', $data['check_in']);
             [$h2, $m2] = explode(':', $data['check_out']);
             $minutes = ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
+            $minutes -= (float) ($data['break_hours'] ?? 0) * 60;
             if ($minutes > 0) {
                 $data['hours_worked'] = round($minutes / 60, 2);
                 $data['days_worked']  = round($minutes / 60 / 8, 2);

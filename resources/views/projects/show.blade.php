@@ -475,8 +475,12 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
-                                                    <div class="avatar bg-primary-subtle text-primary rounded-circle p-2 me-2 d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.7rem;">
-                                                        {{ substr($emp->first_name, 0, 1) }}{{ substr($emp->last_name, 0, 1) }}
+                                                    <div class="avatar rounded-circle me-2 overflow-hidden {{ $emp->photo_url ? '' : 'bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold' }}" style="width: 32px; height: 32px; font-size: 0.7rem;">
+                                                        @if($emp->photo_url)
+                                                            <img src="{{ $emp->photo_url }}" alt="{{ $emp->full_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                                        @else
+                                                            {{ substr($emp->first_name, 0, 1) }}{{ substr($emp->last_name, 0, 1) }}
+                                                        @endif
                                                     </div>
                                                     <div>
                                                         <div class="fw-bold text-dark small">{{ $emp->full_name }}</div>

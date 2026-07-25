@@ -145,8 +145,12 @@
                         <tr class="{{ $employee->trashed() ? 'bg-light bg-opacity-50' : '' }}">
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar avatar-sm bg-label-primary me-3">
-                                        <span class="avatar-initial rounded-circle fw-bold">{{ substr($employee->first_name, 0, 1) }}{{ substr($employee->last_name, 0, 1) }}</span>
+                                    <div class="avatar avatar-sm me-3">
+                                        @if($employee->photo_url)
+                                            <img src="{{ $employee->photo_url }}" alt="{{ $employee->full_name }}" class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;">
+                                        @else
+                                            <span class="avatar-initial rounded-circle fw-bold bg-label-primary">{{ substr($employee->first_name, 0, 1) }}{{ substr($employee->last_name, 0, 1) }}</span>
+                                        @endif
                                     </div>
                                     <div>
                                         <a href="{{ route('employees.show', $employee) }}" class="fw-bold text-dark text-decoration-none d-block">
@@ -197,7 +201,7 @@
                                         </a>
                                         @can('employees.edit')
                                         <button type="button" class="btn btn-icon btn-sm btn-label-info shadow-none" title="Modifier"
-                                            onclick='empModalEdit({{ json_encode(["id"=>$employee->id,"first_name"=>$employee->first_name,"last_name"=>$employee->last_name,"matricule"=>$employee->matricule,"phone"=>$employee->phone,"email"=>$employee->email,"job_type_id"=>$employee->job_type_id, "job_type_ids"=>$employee->jobTypes->pluck("id"), "supplier_id"=>$employee->supplier_id,"region_id"=>$employee->region_id,"contract_type"=>$employee->contract_type,"hire_date"=>$employee->hire_date?->format("Y-m-d"),"daily_rate"=>$employee->daily_rate,"monthly_salary"=>$employee->monthly_salary,"notes"=>$employee->notes]) }})'>
+                                            onclick='empModalEdit({{ json_encode(["id"=>$employee->id,"first_name"=>$employee->first_name,"last_name"=>$employee->last_name,"photo_url"=>$employee->photo_url,"matricule"=>$employee->matricule,"phone"=>$employee->phone,"email"=>$employee->email,"job_type_id"=>$employee->job_type_id, "job_type_ids"=>$employee->jobTypes->pluck("id"), "supplier_id"=>$employee->supplier_id,"region_id"=>$employee->region_id,"contract_type"=>$employee->contract_type,"hire_date"=>$employee->hire_date?->format("Y-m-d"),"daily_rate"=>$employee->daily_rate,"monthly_salary"=>$employee->monthly_salary,"notes"=>$employee->notes]) }})'>
                                             <i class="bx bx-edit-alt"></i>
                                         </button>
                                         @endcan
@@ -238,7 +242,7 @@
     <div class="modal fade" id="empModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
-                <form id="empForm" method="POST">
+                <form id="empForm" method="POST" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="_method" id="empMethod" value="">
                     <div class="modal-header bg-light border-bottom">
@@ -247,6 +251,21 @@
                     </div>
                     <div class="modal-body p-4">
                         <div class="row g-4">
+                            <div class="col-12 text-center mb-2">
+                                <div class="mx-auto border rounded-circle bg-light d-flex align-items-center justify-content-center overflow-hidden position-relative"
+                                     style="width: 110px; height: 110px; cursor: pointer;"
+                                     onclick="document.getElementById('ePhotoInput').click()">
+                                    <img id="ePhotoPreview" src="" class="w-100 h-100" style="object-fit: cover; display: none;">
+                                    <div id="ePhotoPlaceholder" class="text-center p-2">
+                                        <i class="bx bx-camera fs-2 opacity-50"></i>
+                                        <p class="small text-muted mb-0" style="font-size: 0.65rem;">Photo</p>
+                                    </div>
+                                </div>
+                                {{-- accept=image/* + capture=user : sur mobile, ouvre directement l'appareil photo (caméra frontale) ; sur ordinateur, ouvre le sélecteur de fichier classique. --}}
+                                <input type="file" name="photo" id="ePhotoInput" class="d-none"
+                                       accept="image/*" capture="user" onchange="empPhotoChange(this)">
+                                <div class="small text-muted mt-1" style="font-size: 0.7rem;">Cliquez pour choisir une photo ou la prendre avec l'appareil photo (mobile)</div>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-uppercase">Prénom <span class="text-danger">*</span></label>
                                 <input type="text" name="first_name" id="eFirstName" class="form-control" required placeholder="Ex: Jean">
@@ -357,6 +376,33 @@
         });
     });
 
+    function empPhotoChange(input) {
+        const file = input.files[0];
+        const preview = document.getElementById('ePhotoPreview');
+        const placeholder = document.getElementById('ePhotoPlaceholder');
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
+    }
+
+    function empResetPhoto(url) {
+        const input = document.getElementById('ePhotoInput');
+        const preview = document.getElementById('ePhotoPreview');
+        const placeholder = document.getElementById('ePhotoPlaceholder');
+        input.value = '';
+        if (url) {
+            preview.src = url;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        } else {
+            preview.src = '';
+            preview.style.display = 'none';
+            placeholder.style.display = 'block';
+        }
+    }
+
     function empModalCreate() {
         document.getElementById('empModalTitle').textContent = 'Créer une fiche employé';
         document.getElementById('empForm').action = '{{ route('employees.store') }}';
@@ -364,7 +410,8 @@
         ['eFirstName','eLastName','eMatricule','ePhone','eEmail','eDailyRate','eHireDate','eNotes'].forEach(function(id) {
             var el = document.getElementById(id); if (el) el.value = '';
         });
-        
+        empResetPhoto(null);
+
         // Reset multi-select
         if (jtTomSelect) {
             jtTomSelect.clear();
@@ -372,7 +419,7 @@
             let jtSelect = document.getElementById('eJobTypes');
             Array.from(jtSelect.options).forEach(opt => opt.selected = false);
         }
-        
+
         document.getElementById('eRegion').value = '';
         document.getElementById('eContractType').value = '';
         new bootstrap.Modal(document.getElementById('empModal')).show();
@@ -386,7 +433,8 @@
         document.getElementById('eMatricule').value    = data.matricule     || '';
         document.getElementById('ePhone').value        = data.phone         || '';
         document.getElementById('eEmail').value        = data.email         || '';
-        
+        empResetPhoto(data.photo_url || null);
+
         // Handle multi-select for job types
         let selectedIds = data.job_type_ids || (data.job_type_id ? [data.job_type_id] : []);
         if (jtTomSelect) {

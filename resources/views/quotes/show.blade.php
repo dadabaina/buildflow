@@ -72,12 +72,18 @@
                                     </form>
                                 @endif
                                 @if($quote->status === 'accepte')
-                                    <form method="POST" action="{{ route('quotes.convert', $quote) }}">
-                                        @csrf
-                                        <button class="btn btn-success shadow-sm px-3">
-                                            <i class="bx bx-receipt me-1"></i>Facturer
-                                        </button>
-                                    </form>
+                                    @if($quote->invoice)
+                                        <a href="{{ route('invoices.show', $quote->invoice) }}" class="btn btn-success shadow-sm px-3">
+                                            <i class="bx bx-receipt me-1"></i>Voir la facture {{ $quote->invoice->reference }}
+                                        </a>
+                                    @else
+                                        <form method="POST" action="{{ route('quotes.convert', $quote) }}">
+                                            @csrf
+                                            <button class="btn btn-success shadow-sm px-3">
+                                                <i class="bx bx-receipt me-1"></i>Facturer
+                                            </button>
+                                        </form>
+                                    @endif
                                 @endif
                             @endcan
                             <div class="btn-group">

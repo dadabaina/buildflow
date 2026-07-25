@@ -70,7 +70,8 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Photo</th>
+                            <th>Photo employé</th>
+                            <th>Photo pointage</th>
                             <th>Date</th>
                             <th>Employé</th>
                             <th>Chantier</th>
@@ -86,15 +87,31 @@
                         @forelse($attendances as $att)
                             <tr>
                                 <td>
+                                    @if($att->employee?->photo_url)
+                                        <img src="{{ $att->employee->photo_url }}"
+                                             class="rounded-circle shadow-sm"
+                                             style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
+                                             title="Photo de référence de l'employé"
+                                             alt="Photo de l'employé">
+                                    @else
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted"
+                                             style="width: 32px; height: 32px; border: 2px solid #fff;"
+                                             title="Aucune photo employé enregistrée">
+                                            <i class="bx bx-user small"></i>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td>
                                     @if($att->photo_path)
                                         <a href="{{ asset('storage/' . $att->photo_path) }}" target="_blank">
-                                            <img src="{{ asset('storage/' . $att->photo_path) }}" 
+                                            <img src="{{ asset('storage/' . $att->photo_path) }}"
                                                  class="rounded-circle shadow-sm"
                                                  style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
+                                                 title="Photo capturée au moment du pointage"
                                                  alt="Photo de présence">
                                         </a>
                                     @else
-                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted" 
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted"
                                              style="width: 32px; height: 32px; border: 2px solid #fff;">
                                             <i class="bx bx-camera small"></i>
                                         </div>
@@ -126,7 +143,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="9" class="text-center text-muted py-4">Aucun pointage trouvé.</td></tr>
+                            <tr><td colspan="11" class="text-center text-muted py-4">Aucun pointage trouvé.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
