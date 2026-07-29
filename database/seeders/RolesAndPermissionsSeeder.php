@@ -128,5 +128,16 @@ class RolesAndPermissionsSeeder extends Seeder
             'expenses.view', 'expenses.create',
             'expense_templates.view',
         ]);
+
+        // Chef de chantier : gère le(s) chantier(s) qui lui sont assignés (voir App\Http\Controllers\Controller::authorizeProjectScope)
+        $siteManager = Role::firstOrCreate(['name' => 'chef_chantier', 'guard_name' => 'web']);
+        $siteManager->syncPermissions([
+            'projects.view', 'projects.edit', 'projects.change_status',
+            'employees.view',
+            'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete',
+            'expenses.view', 'expenses.create', 'expenses.edit',
+            'attendances.view', 'attendances.create',
+            'documents.view', 'documents.create',
+        ]);
     }
 }

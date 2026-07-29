@@ -25,16 +25,23 @@ class ExpenseController extends Controller
         if ($search = $request->input('search')) {
             $query->where('description', 'like', "%{$search}%");
         }
+        if (Auth::user()->hasRole('chef_chantier')) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
 
         $expenses   = $query->paginate(25)->withQueryString();
-        $projects   = Project::orderBy('name')->get();
+        $projects   = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
 
         return view('expenses.index', compact('expenses', 'projects'));
     }
 
     public function create()
     {
-        $projects    = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $categories  = ExpenseCategory::orderBy('name')->get();
         $suppliers   = Supplier::orderBy('name')->get();
         $tasks       = Task::orderBy('title')->get();
@@ -44,6 +51,7 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateExpense($request);
+        $this->authorizeProjectScope($validated['project_id']);
         $validated['created_by'] = Auth::id();
         Auth::user()->company->expenses()->create($validated);
         return redirect()->route('expenses.index')
@@ -53,6 +61,7 @@ class ExpenseController extends Controller
     public function show(Expense $expense)
     {
         abort_if($expense->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($expense->project_id);
         $expense->load(['project', 'category', 'supplier', 'createdBy', 'validatedBy']);
         return view('expenses.show', compact('expense'));
     }
@@ -60,10 +69,13 @@ class ExpenseController extends Controller
     public function edit(Expense $expense)
     {
         abort_if($expense->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($expense->project_id);
         if ($expense->status !== 'saisie') {
             return back()->with('error', 'Seules les dépenses en attente peuvent être modifiées.');
         }
-        $projects   = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $categories = ExpenseCategory::orderBy('name')->get();
         $suppliers  = Supplier::orderBy('name')->get();
         $tasks      = Task::orderBy('title')->get();
@@ -73,10 +85,12 @@ class ExpenseController extends Controller
     public function update(Request $request, Expense $expense)
     {
         abort_if($expense->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($expense->project_id);
         if ($expense->status !== 'saisie') {
             return back()->with('error', 'Seules les dépenses en attente peuvent être modifiées.');
         }
         $validated = $this->validateExpense($request);
+        $this->authorizeProjectScope($validated['project_id']);
         $expense->update($validated);
         return redirect()->route('expenses.show', $expense)
             ->with('success', 'Dépense mise à jour.');
@@ -85,6 +99,7 @@ class ExpenseController extends Controller
     public function destroy(Expense $expense)
     {
         abort_if($expense->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($expense->project_id);
         $expense->delete();
         return redirect()->route('expenses.index')
             ->with('success', 'Dépense supprimée.');

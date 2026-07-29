@@ -70,6 +70,7 @@ class ProjectController extends Controller
     public function show(Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $project->load([
             'client', 'region', 'employees.jobTypes', 'requirements.jobType.category',
             'expenses'       => fn($q) => $q->with(['category', 'task'])->latest()->take(10),
@@ -109,6 +110,7 @@ class ProjectController extends Controller
     public function updateThreshold(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $validated = $request->validate([
             'material_id'   => ['required', 'exists:materials,id'],
             'min_threshold' => ['required', 'numeric', 'min:0'],
@@ -125,6 +127,7 @@ class ProjectController extends Controller
     public function assignEquipment(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $validated = $request->validate([
             'equipment_id' => ['required', 'exists:equipments,id'],
             'start_date'   => ['required', 'date'],
@@ -151,6 +154,7 @@ class ProjectController extends Controller
     public function detachEquipment(Project $project, \App\Models\ProjectEquipment $assignment)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         abort_if($assignment->project_id !== $project->id, 404);
 
         $equipment = $assignment->equipment;
@@ -165,6 +169,7 @@ class ProjectController extends Controller
     public function storeRequirement(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
 
         $validated = $request->validate([
             'job_type_id'     => ['required', 'exists:job_types,id'],
@@ -183,6 +188,7 @@ class ProjectController extends Controller
     public function destroyRequirement(Project $project, \App\Models\ProjectRequirement $requirement)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         abort_if($requirement->project_id !== $project->id, 404);
 
         $requirement->delete();
@@ -193,6 +199,7 @@ class ProjectController extends Controller
     public function edit(Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $clients   = Client::orderBy('name')->get();
         $regions   = Region::orderBy('name')->get();
         $employees = Employee::with('jobTypes.category')->orderBy('last_name')->get();
@@ -203,8 +210,18 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $validated = $this->validateProject($request);
         unset($validated['employee_ids']);
+
+        // Le chef de chantier gère la fiche opérationnelle mais pas les champs financiers/contractuels.
+        if (Auth::user()->hasRole('chef_chantier')) {
+            unset(
+                $validated['contract_amount'], $validated['budget_total'],
+                $validated['tva_rate'], $validated['rg_rate'],
+                $validated['start_date'], $validated['planned_end_date']
+            );
+        }
 
         $project->update($validated);
 
@@ -215,6 +232,7 @@ class ProjectController extends Controller
     public function destroy(Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorize('projects.delete');
         $project->delete();
         return redirect()->route('projects.index')
             ->with('success', 'Chantier supprimé.');
@@ -223,6 +241,7 @@ class ProjectController extends Controller
     public function updateStatus(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $request->validate(['status' => ['required', 'string']]);
 
         if (!$project->canTransitionTo($request->status)) {
@@ -244,6 +263,7 @@ class ProjectController extends Controller
     public function syncEmployees(Request $request, Project $project)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $request->validate([
             'employee_ids'   => ['nullable', 'array'],
             'employee_ids.*' => ['exists:employees,id'],
@@ -263,6 +283,7 @@ class ProjectController extends Controller
     public function detachEmployee(Project $project, Employee $employee)
     {
         abort_if($project->company_id !== Auth::user()->company_id, 403);
+        $this->authorizeProjectScope($project->id);
         $project->employees()->detach($employee->id);
 
         \App\Models\ProjectLog::log(

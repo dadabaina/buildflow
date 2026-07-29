@@ -12,7 +12,9 @@ class Attendance extends Model
 
     protected $fillable = [
         'company_id', 'project_id', 'employee_id', 'created_by',
-        'work_date', 'photo_path', 'check_in', 'check_out', 'break_hours',
+        'checked_in_by', 'checked_out_by',
+        'work_date', 'photo_path', 'photo_path_in', 'photo_path_out',
+        'check_in', 'check_out', 'break_hours',
         'hours_worked', 'days_worked', 'status',
         'latitude', 'longitude', 'notes',
     ];
@@ -26,10 +28,12 @@ class Attendance extends Model
         'longitude'    => 'decimal:7',
     ];
 
-    public function company()   { return $this->belongsTo(Company::class); }
-    public function project()   { return $this->belongsTo(Project::class); }
-    public function employee()  { return $this->belongsTo(Employee::class); }
-    public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
+    public function company()     { return $this->belongsTo(Company::class); }
+    public function project()     { return $this->belongsTo(Project::class); }
+    public function employee()    { return $this->belongsTo(Employee::class); }
+    public function createdBy()   { return $this->belongsTo(User::class, 'created_by'); }
+    public function checkedInBy() { return $this->belongsTo(User::class, 'checked_in_by'); }
+    public function checkedOutBy(){ return $this->belongsTo(User::class, 'checked_out_by'); }
 
     public function getStatusLibelleAttribute(): string
     {

@@ -30,9 +30,14 @@ class TaskController extends Controller
         if ($projectId = $request->input('project_id')) {
             $query->where('project_id', $projectId);
         }
+        if (Auth::user()->hasRole('chef_chantier')) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
 
         $tasks    = $query->paginate(25)->withQueryString();
-        $projects = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
 
         return view('tasks.index', compact('tasks', 'projects'));
     }
@@ -45,6 +50,9 @@ class TaskController extends Controller
         if ($projectId) {
             $query->where('project_id', $projectId);
         }
+        if (Auth::user()->hasRole('chef_chantier')) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
 
         $allTasks = $query->get();
         $columns  = [
@@ -53,14 +61,18 @@ class TaskController extends Controller
             'en_pause' => $allTasks->where('status', 'en_pause'),
             'termine'  => $allTasks->where('status', 'termine'),
         ];
-        $projects = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
 
         return view('tasks.kanban', compact('columns', 'projects', 'projectId'));
     }
 
     public function create(Request $request)
     {
-        $projects  = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $employees = Employee::orderBy('last_name')->get();
         $selected  = $request->input('project_id');
         return view('tasks.form', compact('projects', 'employees', 'selected'));
@@ -69,6 +81,7 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateTask($request);
+        $this->authorizeProjectScope($data['project_id']);
         $data['created_by'] = Auth::id();
 
         $task = Task::create($data);
@@ -92,6 +105,7 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $task->load(['project', 'employees', 'comments.user', 'createdBy', 'expenses.category', 'quoteItem']);
         $expenseTemplates = \App\Models\ExpenseTemplate::where('is_active', true)->orderBy('name')->get();
         return view('tasks.show', compact('task', 'expenseTemplates'));
@@ -99,15 +113,20 @@ class TaskController extends Controller
 
     public function edit(Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $task->load('employees');
-        $projects  = Project::orderBy('name')->get();
+        $projects = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $employees = Employee::orderBy('last_name')->get();
         return view('tasks.form', compact('task', 'projects', 'employees'));
     }
 
     public function update(Request $request, Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $data = $this->validateTask($request);
+        $this->authorizeProjectScope($data['project_id']);
         $task->update($data);
         
         $oldEmployees = $task->employees()->pluck('employees.id')->toArray();
@@ -150,6 +169,7 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $projectId = $task->project_id;
         $title = $task->title;
 
@@ -172,6 +192,7 @@ class TaskController extends Controller
 
     public function updateStatus(Request $request, Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $request->validate(['status' => 'required|in:a_faire,en_cours,en_pause,termine,annule']);
         $oldStatus = $task->status;
         $newStatus = $request->input('status');
@@ -212,6 +233,7 @@ class TaskController extends Controller
 
     public function storeComment(Request $request, Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $request->validate(['body' => 'required|string|max:2000']);
         $task->comments()->create([
             'user_id' => Auth::id(),
@@ -222,6 +244,7 @@ class TaskController extends Controller
 
     public function updateChecklist(Request $request, Task $task)
     {
+        $this->authorizeProjectScope($task->project_id);
         $request->validate(['checklist' => 'nullable|array']);
         $task->update(['checklist' => $request->input('checklist', [])]);
         return response()->json(['ok' => true]);

@@ -16,7 +16,8 @@
                 </div>
                 <div class="card-body">
                     <form method="POST"
-                          action="{{ isset($user) ? route('users.update', $user) : route('users.store') }}">
+                          action="{{ isset($user) ? route('users.update', $user) : route('users.store') }}"
+                          x-data="{ role: '{{ old('role', isset($user) ? $user->roles->first()?->name : '') }}' }">
                         @csrf
                         @isset($user) @method('PATCH') @endisset
 
@@ -56,7 +57,8 @@
 
                             <div class="col-12">
                                 <label class="form-label">Rôle <span class="text-danger">*</span></label>
-                                <select name="role" class="form-select @error('role') is-invalid @enderror" required>
+                                <select name="role" class="form-select @error('role') is-invalid @enderror" required
+                                        x-model="role">
                                     <option value="">Sélectionner...</option>
                                     @foreach($roles as $role)
                                     <option value="{{ $role->name }}"
@@ -66,6 +68,20 @@
                                     @endforeach
                                 </select>
                                 @error('role') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div class="col-12" x-show="role === 'chef_chantier'" x-cloak>
+                                <label class="form-label">Chantiers gérés</label>
+                                <select name="project_ids[]" class="form-select @error('project_ids') is-invalid @enderror" multiple size="6">
+                                    @foreach($projects as $project)
+                                    <option value="{{ $project->id }}"
+                                        {{ in_array($project->id, old('project_ids', $managedProjectIds ?? [])) ? 'selected' : '' }}>
+                                        {{ $project->name }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">Le chef de chantier ne verra et ne pourra gérer (pointage, tâches, dépenses, fiche chantier) que les chantiers sélectionnés ici.</small>
+                                @error('project_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                         </div>
 

@@ -46,6 +46,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Company::class);
     }
 
+    public function managedProjects()
+    {
+        return $this->belongsToMany(Project::class, 'project_managers');
+    }
+
+    public function managesProject(int $projectId): bool
+    {
+        return $this->managedProjects()->where('projects.id', $projectId)->exists();
+    }
+
     public function getFullNameAttribute(): string
     {
         return $this->name;

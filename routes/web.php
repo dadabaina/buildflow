@@ -216,6 +216,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::get('attendances/recap/export', [AttendanceController::class, 'exportCsv'])->name('attendances.recap.export');
     Route::resource('attendances', AttendanceController::class)->except(['show']);
 
+    // Kiosque pointage (Entrée/Sortie terrain)
+    Route::get('pointage', [\App\Http\Controllers\PointageKioskController::class, 'index'])->name('pointage.kiosque');
+    Route::post('pointage/{project}/{employee}/entree', [\App\Http\Controllers\PointageKioskController::class, 'entree'])->name('pointage.entree');
+    Route::post('pointage/{project}/{employee}/sortie', [\App\Http\Controllers\PointageKioskController::class, 'sortie'])->name('pointage.sortie');
+
     // ── Wave 9 : Documents ───────────────────────────────────────────────────
     Route::resource('documents', DocumentController::class)->except(['edit', 'update']);
 

@@ -66,6 +66,12 @@
                 <div>Pointage Effectif</div>
             </a>
         </li>
+        <li class="menu-item {{ request()->routeIs('pointage.*') ? 'active' : '' }}">
+            <a href="{{ route('pointage.kiosque') }}" class="menu-link">
+                <i class="menu-icon icon-base bx bx-camera"></i>
+                <div>Pointage — Kiosque</div>
+            </a>
+        </li>
         <li class="menu-item {{ request()->routeIs('documents.*') ? 'active' : '' }}">
             <a href="{{ route('documents.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-folder-open"></i>

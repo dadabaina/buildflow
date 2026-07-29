@@ -23,18 +23,21 @@ class UserController extends Controller
     public function create()
     {
         $this->authorize('users.create');
-        $roles = Role::where('company_id', Auth::user()->company_id)->orWhereNull('company_id')->get();
-        return view('users.form', compact('roles'));
+        $roles    = Role::where('company_id', Auth::user()->company_id)->orWhereNull('company_id')->get();
+        $projects = Auth::user()->company->projects()->orderBy('name')->get();
+        return view('users.form', compact('roles', 'projects'));
     }
 
     public function store(Request $request)
     {
         $this->authorize('users.create');
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-            'role'     => 'required|exists:roles,name',
+            'name'         => 'required|string|max:255',
+            'email'        => 'required|email|unique:users,email',
+            'password'     => 'required|string|min:8|confirmed',
+            'role'         => 'required|exists:roles,name',
+            'project_ids'   => ['nullable', 'array'],
+            'project_ids.*' => ['exists:projects,id'],
         ]);
 
         $company = Auth::user()->company;
@@ -48,6 +51,10 @@ class UserController extends Controller
         // Spatie teams handles company_id via setPermissionsTeamId in middleware
         $user->assignRole($request->role);
 
+        if ($request->role === 'chef_chantier') {
+            $user->managedProjects()->sync($request->input('project_ids', []));
+        }
+
         return redirect()->route('users.index')->with('success', 'Utilisateur créé.');
     }
 
@@ -55,8 +62,10 @@ class UserController extends Controller
     {
         $this->authorize('users.edit');
         abort_if($user->company_id !== Auth::user()->company_id, 403);
-        $roles = Role::where('company_id', Auth::user()->company_id)->orWhereNull('company_id')->get();
-        return view('users.form', compact('user', 'roles'));
+        $roles    = Role::where('company_id', Auth::user()->company_id)->orWhereNull('company_id')->get();
+        $projects = Auth::user()->company->projects()->orderBy('name')->get();
+        $managedProjectIds = $user->managedProjects()->pluck('projects.id')->toArray();
+        return view('users.form', compact('user', 'roles', 'projects', 'managedProjectIds'));
     }
 
     public function update(Request $request, User $user)
@@ -64,10 +73,12 @@ class UserController extends Controller
         $this->authorize('users.edit');
         abort_if($user->company_id !== Auth::user()->company_id, 403);
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email,' . $user->id,
-            'password' => 'nullable|string|min:8|confirmed',
-            'role'     => 'required|exists:roles,name',
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|unique:users,email,' . $user->id,
+            'password'      => 'nullable|string|min:8|confirmed',
+            'role'          => 'required|exists:roles,name',
+            'project_ids'   => ['nullable', 'array'],
+            'project_ids.*' => ['exists:projects,id'],
         ]);
 
         $data = ['name' => $request->name, 'email' => $request->email];
@@ -77,6 +88,7 @@ class UserController extends Controller
 
         $user->update($data);
         $user->syncRoles([$request->role]);
+        $user->managedProjects()->sync($request->role === 'chef_chantier' ? $request->input('project_ids', []) : []);
 
         return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour.');
     }

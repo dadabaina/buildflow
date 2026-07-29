@@ -21,6 +21,7 @@ export default defineConfig({
                 // App custom
                 'resources/css/app.scss',
                 'resources/js/app.js',
+                'resources/js/pointage-kiosque.js',
             ],
             refresh: true,
         }),

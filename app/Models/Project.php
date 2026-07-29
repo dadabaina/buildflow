@@ -75,6 +75,11 @@ class Project extends Model
             ->withTimestamps();
     }
 
+    public function managers()
+    {
+        return $this->belongsToMany(User::class, 'project_managers');
+    }
+
     public function expenses()
     {
         return $this->hasMany(Expense::class);

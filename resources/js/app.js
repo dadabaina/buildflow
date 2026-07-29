@@ -1,4 +1,5 @@
 import './bootstrap';
+import './pwa';
 
 // Bootstrap 5
 import * as bootstrap from 'bootstrap';
