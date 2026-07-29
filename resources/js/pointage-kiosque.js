@@ -64,13 +64,27 @@ function setStatus(employeeId, action, state) {
     const row = document.querySelector(`[data-row="${employeeId}"]`);
     if (!row) return;
     const badge = row.querySelector('.pointage-status');
-    if (!badge) return;
+    const button = row.querySelector('.pointage-form button');
     if (state === 'queued') {
-        badge.textContent = '⏳ En attente de synchronisation';
-        badge.className = 'badge bg-label-warning pointage-status';
+        if (badge) {
+            badge.textContent = '⏳ En attente de synchronisation';
+            badge.className = 'badge bg-label-warning pointage-status';
+        }
+        if (button) {
+            button.disabled = true;
+            button.className = 'btn btn-outline-secondary w-100';
+            button.innerHTML = '<i class="bx bx-time-five me-1"></i>En attente de synchro';
+        }
     } else if (state === 'error') {
-        badge.textContent = '⚠ Échec de synchronisation';
-        badge.className = 'badge bg-label-danger pointage-status';
+        if (badge) {
+            badge.textContent = '⚠ Échec de synchronisation';
+            badge.className = 'badge bg-label-danger pointage-status';
+        }
+        if (button) {
+            button.disabled = false;
+            button.className = 'btn btn-outline-danger w-100';
+            button.innerHTML = '<i class="bx bx-error me-1"></i>Échec — réessayer';
+        }
     }
 }
 
@@ -81,6 +95,10 @@ async function trySyncQueue() {
     } catch {
         return;
     }
+    // Affiche l'état "en attente" dès le chargement pour toute soumission déjà
+    // en file (ex. page rechargée hors-ligne) : sans ça, la ligne retombe à
+    // l'état par défaut et le bouton "Entrée" reste vert comme si de rien n'était.
+    items.forEach((item) => setStatus(item.employeeId, item.action, 'queued'));
     for (const item of items) {
         try {
             const resp = await submitPointage(item.url, item.photo, item.capturedAt);

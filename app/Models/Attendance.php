@@ -10,6 +10,9 @@ class Attendance extends Model
 {
     use HasFactory, BelongsToCompany;
 
+    /** Pause déjeuner déduite par défaut quand aucune valeur n'est saisie. */
+    const DEFAULT_BREAK_HOURS = 1.0;
+
     protected $fillable = [
         'company_id', 'project_id', 'employee_id', 'created_by',
         'checked_in_by', 'checked_out_by',
@@ -53,5 +56,32 @@ class Attendance extends Model
             'absent_non_justifie'  => 'bg-danger',
             default                => 'bg-secondary',
         };
+    }
+
+    /**
+     * Calcule heures/jours travaillés à partir d'une entrée et d'une sortie.
+     * Si aucune pause n'est renseignée, une pause déjeuner par défaut
+     * (self::DEFAULT_BREAK_HOURS) est déduite.
+     */
+    public static function computeHours(?string $checkIn, ?string $checkOut, $breakHours = null): array
+    {
+        if (!$checkIn || !$checkOut) {
+            return ['hours_worked' => null, 'days_worked' => null];
+        }
+
+        $breakHours = $breakHours ?? self::DEFAULT_BREAK_HOURS;
+
+        [$h1, $m1] = explode(':', $checkIn);
+        [$h2, $m2] = explode(':', $checkOut);
+        $minutes = ($h2 * 60 + $m2) - ($h1 * 60 + $m1) - ((float) $breakHours * 60);
+
+        if ($minutes <= 0) {
+            return ['hours_worked' => null, 'days_worked' => null];
+        }
+
+        return [
+            'hours_worked' => round($minutes / 60, 2),
+            'days_worked'  => round($minutes / 60 / 8, 2),
+        ];
     }
 }

@@ -21,7 +21,7 @@
                       x-data="{
                           checkIn: '{{ old('check_in', isset($attendance) && $attendance->check_in ? substr($attendance->check_in, 0, 5) : '') }}',
                           checkOut: '{{ old('check_out', isset($attendance) && $attendance->check_out ? substr($attendance->check_out, 0, 5) : '') }}',
-                          breakHours: '{{ old('break_hours', $attendance->break_hours ?? '') }}',
+                          breakHours: '{{ old('break_hours', $attendance->break_hours ?? '1') }}',
                           photoPreview: '{{ isset($attendance) && $attendance->photo_path ? asset('storage/' . $attendance->photo_path) : '' }}',
                           get hours() {
                               if(!this.checkIn || !this.checkOut) return '';
@@ -114,7 +114,7 @@
                                 @error('days_worked')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
-                            <div class="col-12"><hr class="my-1"><small class="text-muted">Optionnel : saisir les heures pour calcul automatique</small></div>
+                            <div class="col-12"><hr class="my-1"><small class="text-muted">Optionnel : saisir les heures pour calcul automatique — une pause déjeuner d'1h est déduite par défaut</small></div>
 
                             <div class="col-md-3">
                                 <label class="form-label">Heure d'arrivée</label>

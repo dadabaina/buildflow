@@ -98,13 +98,12 @@ class PointageKioskController extends Controller
         $attendance->check_out      = $capturedAt->format('H:i');
         $attendance->photo_path_out = $this->processPhoto($request->file('photo'));
         $attendance->checked_out_by = Auth::id();
+        $attendance->break_hours    ??= Attendance::DEFAULT_BREAK_HOURS;
 
-        [$h1, $m1] = explode(':', $attendance->check_in);
-        [$h2, $m2] = explode(':', $attendance->check_out);
-        $minutes = ($h2 * 60 + $m2) - ($h1 * 60 + $m1) - ((float) ($attendance->break_hours ?? 0) * 60);
-        if ($minutes > 0) {
-            $attendance->hours_worked = round($minutes / 60, 2);
-            $attendance->days_worked  = round($minutes / 60 / 8, 2);
+        $computed = Attendance::computeHours($attendance->check_in, $attendance->check_out, $attendance->break_hours);
+        if ($computed['hours_worked'] !== null) {
+            $attendance->hours_worked = $computed['hours_worked'];
+            $attendance->days_worked  = $computed['days_worked'];
         }
 
         $attendance->save();

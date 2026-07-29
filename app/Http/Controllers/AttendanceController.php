@@ -235,13 +235,11 @@ class AttendanceController extends Controller
     private function calcHours(array &$data): void
     {
         if (!empty($data['check_in']) && !empty($data['check_out'])) {
-            [$h1, $m1] = explode(':', $data['check_in']);
-            [$h2, $m2] = explode(':', $data['check_out']);
-            $minutes = ($h2 * 60 + $m2) - ($h1 * 60 + $m1);
-            $minutes -= (float) ($data['break_hours'] ?? 0) * 60;
-            if ($minutes > 0) {
-                $data['hours_worked'] = round($minutes / 60, 2);
-                $data['days_worked']  = round($minutes / 60 / 8, 2);
+            $data['break_hours'] ??= Attendance::DEFAULT_BREAK_HOURS;
+            $computed = Attendance::computeHours($data['check_in'], $data['check_out'], $data['break_hours']);
+            if ($computed['hours_worked'] !== null) {
+                $data['hours_worked'] = $computed['hours_worked'];
+                $data['days_worked']  = $computed['days_worked'];
             }
         }
     }

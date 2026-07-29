@@ -25,6 +25,49 @@
     <div class="menu-divider mt-0"></div>
     <div class="menu-inner-shadow"></div>
 
+    @php
+        $user = auth()->user();
+        $isAdmin = $user->hasRole(['admin', 'super_admin']) || $user->email === 'admin@demo.mg';
+
+        $canReports = $isAdmin || $user->can('reports.view');
+        $canProjects = $isAdmin || $user->can('projects.view');
+        $canTasks = $isAdmin || $user->can('tasks.view');
+        $canAttendances = $isAdmin || $user->can('attendances.view');
+        $canDocuments = $isAdmin || $user->can('documents.view');
+        $canSiteReports = $isAdmin || $user->can('site_reports.view');
+        $canReceptionReports = $isAdmin || $user->can('reception_reports.view');
+        $canSuppliers = $isAdmin || $user->can('suppliers.view');
+        $canEmployees = $isAdmin || $user->can('employees.view');
+        $canPurchaseOrders = $isAdmin || $user->can('purchase_orders.view');
+        $canMaterials = $isAdmin || $user->can('materials.view');
+        $canDosage = $isAdmin || $user->can('dosage.view');
+        $canExpenseTemplates = $isAdmin || $user->can('expense_templates.view');
+        $canEquipments = $isAdmin || $user->can('equipments.view');
+        $canWarehouses = $isAdmin || $user->can('warehouses.view');
+        $canStock = $isAdmin || $user->can('stock.view');
+        $canClients = $isAdmin || $user->can('clients.view');
+        $canQuotes = $isAdmin || $user->can('quotes.view');
+        $canAmendments = $isAdmin || $user->can('amendments.view');
+        $canProgressBillings = $isAdmin || $user->can('progress_billings.view');
+        $canInvoices = $isAdmin || $user->can('invoices.view');
+        $canPayments = $isAdmin || $user->can('payments.view');
+        $canExpenses = $isAdmin || $user->can('expenses.view');
+        $canSettings = $isAdmin || $user->can('settings.view');
+        $canUsers = $isAdmin || $user->can('users.view');
+        $canRoles = $isAdmin || $user->can('roles.view');
+
+        $showExploitation = $canProjects || $canTasks || $canAttendances || $canDocuments || $canSiteReports || $canReceptionReports;
+        $showRapportsTerrain = $canSiteReports || $canReceptionReports;
+        $showLogistique = $canSuppliers || $canEmployees || $canPurchaseOrders || $canMaterials || $canDosage || $canExpenseTemplates || $canEquipments || $canWarehouses || $canStock;
+        $showPartenaires = $canSuppliers || $canEmployees;
+        $showBibliotheque = $canMaterials || $canDosage || $canExpenseTemplates;
+        $showMaterielsStock = $canEquipments || $canWarehouses || $canStock;
+        $showFinance = $canClients || $canQuotes || $canAmendments || $canProgressBillings || $canInvoices || $canPayments || $canExpenses;
+        $showEtudesDevis = $canQuotes || $canAmendments;
+        $showFacturation = $canProgressBillings || $canInvoices || $canPayments;
+        $showAdministration = $canSettings || $canUsers || $canRoles;
+    @endphp
+
     <ul class="menu-inner py-1">
 
         <!-- 1. Pilotage -->
@@ -37,183 +80,242 @@
                 <div>Tableau de bord</div>
             </a>
         </li>
+        @if($canReports)
         <li class="menu-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
             <a href="{{ route('reports.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-bar-chart-square"></i>
                 <div>Analyses & Rapports</div>
             </a>
         </li>
+        @endif
 
         <!-- 2. Exploitation -->
+        @if($showExploitation)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Exploitation</span>
         </li>
+        @if($canProjects)
         <li class="menu-item {{ request()->routeIs('projects.*') ? 'active' : '' }}">
             <a href="{{ route('projects.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-building-house"></i>
                 <div>Chantiers</div>
             </a>
         </li>
+        @endif
+        @if($canTasks)
         <li class="menu-item {{ request()->routeIs('tasks.*') ? 'active' : '' }}">
             <a href="{{ route('tasks.index', ['status' => 'en_cours']) }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-task"></i>
                 <div>Tâches & Suivi</div>
             </a>
         </li>
-        <li class="menu-item {{ request()->routeIs('attendances.*') ? 'active' : '' }}">
-            <a href="{{ route('attendances.index') }}" class="menu-link">
+        @endif
+        @if($canAttendances)
+        <li class="menu-item {{ request()->routeIs('attendances.*', 'pointage.*') ? 'active open' : '' }}">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-time-five"></i>
-                <div>Pointage Effectif</div>
+                <div>Pointage</div>
             </a>
+            <ul class="menu-sub">
+                <li class="menu-item {{ request()->routeIs('pointage.*') ? 'active' : '' }}">
+                    <a href="{{ route('pointage.kiosque') }}" class="menu-link"><div>Kiosque (Entrée / Sortie)</div></a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('attendances.*') ? 'active' : '' }}">
+                    <a href="{{ route('attendances.index') }}" class="menu-link"><div>Suivi & Historique</div></a>
+                </li>
+            </ul>
         </li>
-        <li class="menu-item {{ request()->routeIs('pointage.*') ? 'active' : '' }}">
-            <a href="{{ route('pointage.kiosque') }}" class="menu-link">
-                <i class="menu-icon icon-base bx bx-camera"></i>
-                <div>Pointage — Kiosque</div>
-            </a>
-        </li>
+        @endif
+        @if($canDocuments)
         <li class="menu-item {{ request()->routeIs('documents.*') ? 'active' : '' }}">
             <a href="{{ route('documents.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-folder-open"></i>
                 <div>Documents (GED)</div>
             </a>
         </li>
+        @endif
+        @if($showRapportsTerrain)
         <li class="menu-item {{ request()->routeIs('site-reports.*', 'reception-reports.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-notepad"></i>
                 <div>Rapports de terrain</div>
             </a>
             <ul class="menu-sub">
+                @if($canSiteReports)
                 <li class="menu-item {{ request()->routeIs('site-reports.*') ? 'active' : '' }}">
                     <a href="{{ route('site-reports.index') }}" class="menu-link"><div>Comptes-rendus</div></a>
                 </li>
+                @endif
+                @if($canReceptionReports)
                 <li class="menu-item {{ request()->routeIs('reception-reports.*') ? 'active' : '' }}">
                     <a href="{{ route('reception-reports.index') }}" class="menu-link"><div>PV Réception</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @endif
 
         <!-- 3. Logistique -->
+        @if($showLogistique)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Logistique</span>
         </li>
+        @if($showPartenaires)
         <li class="menu-item {{ request()->routeIs('suppliers.*', 'employees.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-group"></i>
                 <div>Partenaires & Staff</div>
             </a>
             <ul class="menu-sub">
+                @if($canSuppliers)
                 <li class="menu-item {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
                     <a href="{{ route('suppliers.index') }}" class="menu-link"><div>Fournisseurs</div></a>
                 </li>
+                @endif
+                @if($canEmployees)
                 <li class="menu-item {{ request()->routeIs('employees.*') ? 'active' : '' }}">
                     <a href="{{ route('employees.index') }}" class="menu-link"><div>Employés</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @if($canPurchaseOrders)
         <li class="menu-item {{ request()->routeIs('purchase-orders.*') ? 'active' : '' }}">
             <a href="{{ route('purchase-orders.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-cart"></i>
                 <div>Bons de commande</div>
             </a>
         </li>
+        @endif
+        @if($showBibliotheque)
         <li class="menu-item {{ request()->routeIs('materials.*', 'dosage.*', 'expense-templates.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-cube-alt"></i>
                 <div>Bibliothèque Technique</div>
             </a>
             <ul class="menu-sub">
+                @if($canMaterials)
                 <li class="menu-item {{ request()->routeIs('materials.*') ? 'active' : '' }}">
                     <a href="{{ route('materials.index') }}" class="menu-link"><div>Matériaux</div></a>
                 </li>
+                @endif
+                @if($canDosage)
                 <li class="menu-item {{ request()->routeIs('dosage.*') ? 'active' : '' }}">
                     <a href="{{ route('dosage.index') }}" class="menu-link"><div>Dosages DBE</div></a>
                 </li>
+                @endif
+                @if($canExpenseTemplates)
                 <li class="menu-item {{ request()->routeIs('expense-templates.*') ? 'active' : '' }}">
                     <a href="{{ route('expense-templates.index') }}" class="menu-link"><div>Modèles de dépense</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @if($showMaterielsStock)
         <li class="menu-item {{ request()->routeIs('equipments.*', 'warehouses.*', 'stock.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-wrench"></i>
                 <div>Matériels & Stock</div>
             </a>
             <ul class="menu-sub">
+                @if($canEquipments)
                 <li class="menu-item {{ request()->routeIs('equipments.*') ? 'active' : '' }}">
                     <a href="{{ route('equipments.index') }}" class="menu-link"><div>Parc Matériel</div></a>
                 </li>
+                @endif
+                @if($canWarehouses)
                 <li class="menu-item {{ request()->routeIs('warehouses.*') ? 'active' : '' }}">
                     <a href="{{ route('warehouses.index') }}" class="menu-link"><div>Dépôts / Magasins</div></a>
                 </li>
+                @endif
+                @if($canStock)
                 <li class="menu-item {{ request()->routeIs('stock.*') ? 'active' : '' }}">
                     <a href="{{ route('stock.dashboard') }}" class="menu-link"><div>État des Stocks</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @endif
 
         <!-- 4. Finance -->
+        @if($showFinance)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Finance</span>
         </li>
+        @if($canClients)
         <li class="menu-item {{ request()->routeIs('clients.*') ? 'active' : '' }}">
             <a href="{{ route('clients.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-user-voice"></i>
                 <div>Clients</div>
             </a>
         </li>
+        @endif
+        @if($showEtudesDevis)
         <li class="menu-item {{ request()->routeIs('quotes.*', 'amendments.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-spreadsheet"></i>
                 <div>Études & Devis</div>
             </a>
             <ul class="menu-sub">
+                @if($canQuotes)
                 <li class="menu-item {{ request()->routeIs('quotes.*') ? 'active' : '' }}">
                     <a href="{{ route('quotes.index') }}" class="menu-link"><div>Devis</div></a>
                 </li>
+                @endif
+                @if($canAmendments)
                 <li class="menu-item {{ request()->routeIs('amendments.*') ? 'active' : '' }}">
                     <a href="{{ route('amendments.index') }}" class="menu-link"><div>Avenants</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @if($showFacturation)
         <li class="menu-item {{ request()->routeIs('invoices.*', 'progress-billings.*', 'payments.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-receipt"></i>
                 <div>Facturation</div>
             </a>
             <ul class="menu-sub">
+                @if($canProgressBillings)
                 <li class="menu-item {{ request()->routeIs('progress-billings.*') ? 'active' : '' }}">
                     <a href="{{ route('progress-billings.index') }}" class="menu-link"><div>Situations (Décompte)</div></a>
                 </li>
+                @endif
+                @if($canInvoices)
                 <li class="menu-item {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
                     <a href="{{ route('invoices.index') }}" class="menu-link"><div>Factures Clients</div></a>
                 </li>
+                @endif
+                @if($canPayments)
                 <li class="menu-item {{ request()->routeIs('payments.*') ? 'active' : '' }}">
                     <a href="{{ route('payments.index') }}" class="menu-link"><div>Paiements Reçus</div></a>
                 </li>
+                @endif
             </ul>
         </li>
+        @endif
+        @if($canExpenses)
         <li class="menu-item {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
             <a href="{{ route('expenses.index') }}" class="menu-link">
                 <i class="menu-icon icon-base bx bx-money"></i>
                 <div>Dépenses & Frais</div>
             </a>
         </li>
+        @endif
+        @endif
 
         <!-- 5. Administration -->
-        @php
-            $isAdmin = auth()->user()->hasRole(['admin', 'super_admin']) || auth()->user()->email === 'admin@demo.mg';
-            $canSettings = auth()->user()->can('settings.view');
-            $canUsers = auth()->user()->can('users.view');
-            $canRoles = auth()->user()->can('roles.view');
-        @endphp
-
-        @if($isAdmin || $canSettings || $canUsers || $canRoles)
+        @if($showAdministration)
         <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Administration</span>
         </li>
-        
-        @if($isAdmin || $canSettings)
+
+        @if($canSettings)
         <li class="menu-item {{ request()->routeIs('settings.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-cog"></i>
@@ -245,19 +347,23 @@
         </li>
         @endif
 
-        @if($isAdmin || $canUsers || $canRoles)
+        @if($canUsers || $canRoles)
         <li class="menu-item {{ request()->routeIs('users.*', 'roles.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-shield-quarter"></i>
                 <div>Accès & Sécurité</div>
             </a>
             <ul class="menu-sub">
+                @if($canUsers)
                 <li class="menu-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
                     <a href="{{ route('users.index') }}" class="menu-link"><div>Utilisateurs</div></a>
                 </li>
+                @endif
+                @if($canRoles)
                 <li class="menu-item {{ request()->routeIs('roles.*') ? 'active' : '' }}">
                     <a href="{{ route('roles.index') }}" class="menu-link"><div>Rôles & Permissions</div></a>
                 </li>
+                @endif
             </ul>
         </li>
         @endif

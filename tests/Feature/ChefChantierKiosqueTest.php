@@ -107,7 +107,11 @@ class ChefChantierKiosqueTest extends RecetteTestCase
         // vraie journée de travail et vérifier le calcul des heures.
         $attendance->update(['check_in' => '08:00']);
         $this->post(route('pointage.sortie', [$project, $employee]), [
-            'photo' => UploadedFile::fake()->image('sortie.jpg', 400, 400),
+            'photo'       => UploadedFile::fake()->image('sortie.jpg', 400, 400),
+            // Horodatage fixé en après-midi : le calcul des heures ne doit pas
+            // dépendre de l'heure d'exécution réelle du test (sinon un run
+            // avant 08h/09h locale produirait un intervalle négatif).
+            'captured_at' => now()->setTime(17, 0)->toDateTimeString(),
         ])->assertRedirect(route('pointage.kiosque', ['project_id' => $project->id]));
 
         $attendance->refresh();
