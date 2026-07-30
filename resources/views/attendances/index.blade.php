@@ -105,7 +105,7 @@
                                     @if($att->photo_path_in || $att->photo_path_out)
                                         <div class="d-flex gap-1">
                                             @if($att->photo_path_in)
-                                                <a href="{{ asset('storage/' . $att->photo_path_in) }}" target="_blank">
+                                                <a href="javascript:void(0)" onclick="showPhotoModal('{{ asset('storage/' . $att->photo_path_in) }}', '{{ addslashes(($att->employee->first_name ?? '') . ' ' . ($att->employee->last_name ?? '')) }} — Entrée {{ substr($att->check_in ?? '', 0, 5) }}')">
                                                     <img src="{{ asset('storage/' . $att->photo_path_in) }}"
                                                          class="rounded-circle shadow-sm"
                                                          style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
@@ -119,7 +119,7 @@
                                                 </div>
                                             @endif
                                             @if($att->photo_path_out)
-                                                <a href="{{ asset('storage/' . $att->photo_path_out) }}" target="_blank">
+                                                <a href="javascript:void(0)" onclick="showPhotoModal('{{ asset('storage/' . $att->photo_path_out) }}', '{{ addslashes(($att->employee->first_name ?? '') . ' ' . ($att->employee->last_name ?? '')) }} — Sortie {{ substr($att->check_out ?? '', 0, 5) }}')">
                                                     <img src="{{ asset('storage/' . $att->photo_path_out) }}"
                                                          class="rounded-circle shadow-sm"
                                                          style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
@@ -134,7 +134,7 @@
                                             @endif
                                         </div>
                                     @elseif($att->photo_path)
-                                        <a href="{{ asset('storage/' . $att->photo_path) }}" target="_blank">
+                                        <a href="javascript:void(0)" onclick="showPhotoModal('{{ asset('storage/' . $att->photo_path) }}', '{{ addslashes(($att->employee->first_name ?? '') . ' ' . ($att->employee->last_name ?? '')) }}')">
                                             <img src="{{ asset('storage/' . $att->photo_path) }}"
                                                  class="rounded-circle shadow-sm"
                                                  style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
@@ -184,4 +184,29 @@
             <div class="card-footer">{{ $attendances->links() }}</div>
         @endif
     </div>
+
+    {{-- Aperçu photo pointage --}}
+    <div class="modal fade" id="photoPreviewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="photoPreviewModalTitle">Photo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0 text-center bg-dark">
+                    <img id="photoPreviewModalImg" src="" alt="" class="img-fluid" style="max-height: 80vh;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        function showPhotoModal(src, title) {
+            document.getElementById('photoPreviewModalImg').src = src;
+            document.getElementById('photoPreviewModalTitle').textContent = title || 'Photo';
+            new bootstrap.Modal(document.getElementById('photoPreviewModal')).show();
+        }
+    </script>
+    @endpush
 </x-layouts.app>
