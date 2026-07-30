@@ -15,6 +15,9 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $query = Attendance::with(['project', 'employee'])->orderByDesc('work_date');
+        if (Auth::user()->hasRole('chef_chantier')) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
 
         if ($projectId = $request->input('project_id')) {
             $query->where('project_id', $projectId);
@@ -33,7 +36,9 @@ class AttendanceController extends Controller
         }
 
         $attendances = $query->paginate(25)->withQueryString();
-        $projects    = Project::orderBy('name')->get();
+        $projects    = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $employees   = Employee::orderBy('last_name')->get();
 
         return view('attendances.index', compact('attendances', 'projects', 'employees'));
@@ -41,7 +46,9 @@ class AttendanceController extends Controller
 
     public function create(Request $request)
     {
-        $projects  = Project::orderBy('name')->get();
+        $projects  = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $employees = Employee::orderBy('last_name')->get();
         $selected  = $request->input('project_id');
         return view('attendances.form', compact('projects', 'employees', 'selected'));
@@ -50,6 +57,7 @@ class AttendanceController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateAttendance($request);
+        $this->authorizeProjectScope($data['project_id']);
         $data['created_by'] = Auth::id();
         $this->calcHours($data);
 
@@ -65,14 +73,19 @@ class AttendanceController extends Controller
 
     public function edit(Attendance $attendance)
     {
-        $projects  = Project::orderBy('name')->get();
+        $this->authorizeProjectScope($attendance->project_id);
+        $projects  = Auth::user()->hasRole('chef_chantier')
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
         $employees = Employee::orderBy('last_name')->get();
         return view('attendances.form', compact('attendance', 'projects', 'employees'));
     }
 
     public function update(Request $request, Attendance $attendance)
     {
+        $this->authorizeProjectScope($attendance->project_id);
         $data = $this->validateAttendance($request);
+        $this->authorizeProjectScope($data['project_id']);
         $this->calcHours($data);
 
         if ($request->hasFile('photo')) {
@@ -90,6 +103,7 @@ class AttendanceController extends Controller
 
     public function destroy(Attendance $attendance)
     {
+        $this->authorizeProjectScope($attendance->project_id);
         if ($attendance->photo_path) {
             Storage::disk('public')->delete($attendance->photo_path);
         }
@@ -102,6 +116,7 @@ class AttendanceController extends Controller
     {
         $month     = $request->input('month', now()->format('Y-m'));
         $projectId = $request->input('project_id');
+        $isChefChantier = Auth::user()->hasRole('chef_chantier');
 
         [$year, $mon] = explode('-', $month);
 
@@ -110,7 +125,11 @@ class AttendanceController extends Controller
             ->whereMonth('work_date', $mon)
             ->where('status', 'present');
 
+        if ($isChefChantier) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
         if ($projectId) {
+            $this->authorizeProjectScope((int) $projectId);
             $query->where('project_id', $projectId);
         }
 
@@ -127,7 +146,9 @@ class AttendanceController extends Controller
                 ];
             })->values();
 
-        $projects = Project::orderBy('name')->get();
+        $projects = $isChefChantier
+            ? Auth::user()->managedProjects()->orderBy('name')->get()
+            : Project::orderBy('name')->get();
 
         return view('attendances.recap', compact('rows', 'month', 'projects', 'projectId'));
     }
@@ -136,6 +157,7 @@ class AttendanceController extends Controller
     {
         $month     = $request->input('month', now()->format('Y-m'));
         $projectId = $request->input('project_id');
+        $isChefChantier = Auth::user()->hasRole('chef_chantier');
 
         [$year, $mon] = explode('-', $month);
 
@@ -144,7 +166,11 @@ class AttendanceController extends Controller
             ->whereMonth('work_date', $mon)
             ->where('status', 'present');
 
+        if ($isChefChantier) {
+            $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
+        }
         if ($projectId) {
+            $this->authorizeProjectScope((int) $projectId);
             $query->where('project_id', $projectId);
         }
 

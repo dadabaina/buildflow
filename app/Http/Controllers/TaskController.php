@@ -221,6 +221,11 @@ class TaskController extends Controller
             'task_ids.*'  => 'integer|exists:tasks,id',
         ]);
 
+        $tasks = Task::whereIn('id', $data['task_ids'])->get(['id', 'project_id']);
+        foreach ($tasks as $task) {
+            $this->authorizeProjectScope($task->project_id);
+        }
+
         foreach ($data['task_ids'] as $index => $taskId) {
             Task::where('id', $taskId)->update([
                 'status'     => $data['status'],

@@ -13,6 +13,7 @@ class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('invoices.view');
         $company = Auth::user()->company;
         $query = $company->invoices()->with(['project', 'client']);
 
@@ -40,6 +41,7 @@ class InvoiceController extends Controller
 
     public function create(Request $request)
     {
+        $this->authorize('invoices.create');
         $company  = Auth::user()->company;
         $projects = $company->projects()->orderBy('name')->get();
         $clients  = $company->clients()->orderBy('name')->get();
@@ -49,6 +51,7 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('invoices.create');
         $request->validate([
             'project_id'   => 'required|exists:projects,id',
             'client_id'    => 'required|exists:clients,id',
@@ -103,7 +106,7 @@ class InvoiceController extends Controller
 
     public function edit(Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.edit');
         if ($invoice->status === 'soldee') {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'Une facture soldée ne peut plus être modifiée.');
@@ -118,7 +121,7 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.edit');
         if ($invoice->status === 'soldee') {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'Une facture soldée ne peut plus être modifiée.');
@@ -145,7 +148,7 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.delete');
         if ($invoice->status === 'soldee') {
             return back()->with('error', 'Une facture soldée ne peut pas être supprimée.');
         }
@@ -157,7 +160,7 @@ class InvoiceController extends Controller
 
     public function markSent(Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.send');
         if ($invoice->status === 'soldee') {
             return back()->with('error', 'Une facture soldée ne peut pas être modifiée.');
         }
@@ -168,7 +171,7 @@ class InvoiceController extends Controller
 
     public function cancel(Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.edit');
         if ($invoice->status === 'soldee') {
             return back()->with('error', 'Une facture soldée ne peut pas être annulée.');
         }
@@ -179,7 +182,7 @@ class InvoiceController extends Controller
 
     public function addItem(Request $request, Invoice $invoice)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.edit');
         $request->validate([
             'description'  => 'required|string',
             'quantity'     => 'required|numeric|min:0',
@@ -206,7 +209,7 @@ class InvoiceController extends Controller
 
     public function removeItem(Invoice $invoice, InvoiceItem $item)
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, 'invoices.edit');
         abort_if($item->invoice_id !== $invoice->id, 403);
         $item->delete();
         $this->recalculate($invoice);
@@ -242,8 +245,9 @@ class InvoiceController extends Controller
         ]);
     }
 
-    private function authorizeInvoice(Invoice $invoice): void
+    private function authorizeInvoice(Invoice $invoice, string $permission = 'invoices.view'): void
     {
         abort_if($invoice->company_id !== Auth::user()->company_id, 403);
+        $this->authorize($permission);
     }
 }

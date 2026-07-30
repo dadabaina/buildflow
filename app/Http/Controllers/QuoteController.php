@@ -20,6 +20,7 @@ class QuoteController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('quotes.view');
         $company = Auth::user()->company;
         $query = $company->quotes()->with(['project', 'client']);
 
@@ -44,6 +45,7 @@ class QuoteController extends Controller
 
     public function create(Request $request)
     {
+        $this->authorize('quotes.create');
         $company = Auth::user()->company;
         $projects = $company->projects()->orderBy('name')->get();
         $clients = $company->clients()->orderBy('name')->get();
@@ -57,6 +59,7 @@ class QuoteController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('quotes.create');
         $request->validate([
             'project_id' => 'nullable|exists:projects,id',
             'client_id'  => 'required|exists:clients,id',
@@ -108,7 +111,7 @@ class QuoteController extends Controller
 
     public function edit(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         $company = Auth::user()->company;
         $projects = $company->projects()->orderBy('name')->get();
         $clients  = $company->clients()->orderBy('name')->get();
@@ -119,7 +122,7 @@ class QuoteController extends Controller
 
     public function update(Request $request, Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         $request->validate([
             'project_id' => 'nullable|exists:projects,id',
             'client_id'  => 'required|exists:clients,id',
@@ -148,7 +151,7 @@ class QuoteController extends Controller
 
     public function destroy(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.delete');
         $quote->delete();
 
         return redirect()->route('quotes.index')->with('success', 'Devis supprimé.');
@@ -156,7 +159,7 @@ class QuoteController extends Controller
 
     public function send(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.send');
         if ($quote->status === 'brouillon') {
             $quote->generateClientToken();
             $quote->update(['status' => 'envoye']);
@@ -176,7 +179,7 @@ class QuoteController extends Controller
 
     public function accept(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.accept');
         if (in_array($quote->status, ['brouillon', 'envoye'])) {
             DB::transaction(function () use ($quote) {
                 $quote->update(['status' => 'accepte']);
@@ -189,7 +192,8 @@ class QuoteController extends Controller
 
     public function convertToInvoice(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
+        $this->authorize('invoices.create');
 
         if ($quote->status !== 'accepte') {
             return back()->with('error', 'Seul un devis accepté peut être converti en facture.');
@@ -305,7 +309,7 @@ class QuoteController extends Controller
 
     public function generateTasks(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
 
         if ($quote->status !== 'accepte') {
             return back()->with('error', 'Seul un devis accepté peut générer des tâches.');
@@ -430,7 +434,7 @@ class QuoteController extends Controller
 
     public function addItem(Request $request, Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         $request->validate([
             'description' => 'required|string',
             'quantity'    => 'required|numeric|min:0',
@@ -460,7 +464,7 @@ class QuoteController extends Controller
 
     public function updateItem(Request $request, Quote $quote, QuoteItem $item)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         abort_if($item->quote_id !== $quote->id, 403);
 
         $request->validate([
@@ -490,7 +494,7 @@ class QuoteController extends Controller
 
     public function removeItem(Quote $quote, QuoteItem $item)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         abort_if($item->quote_id !== $quote->id, 403);
         $item->delete();
         $quote->recalculateTotals();
@@ -500,7 +504,7 @@ class QuoteController extends Controller
 
     public function refuse(Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.accept');
         abort_if(! in_array($quote->status, ['envoye', 'brouillon']), 422);
         $quote->update(['status' => 'refuse']);
 
@@ -509,7 +513,7 @@ class QuoteController extends Controller
 
     public function duplicate(Request $request, Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.create');
         $quote->load(['sections.items', 'items']);
 
         $company = Auth::user()->company;
@@ -566,7 +570,7 @@ class QuoteController extends Controller
 
     public function addSection(Request $request, Quote $quote)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         abort_if($quote->status !== 'brouillon', 422);
         $request->validate(['title' => 'required|string|max:255']);
 
@@ -581,7 +585,7 @@ class QuoteController extends Controller
 
     public function removeSection(Quote $quote, QuoteSection $section)
     {
-        $this->authorizeQuote($quote);
+        $this->authorizeQuote($quote, 'quotes.edit');
         abort_if($section->quote_id !== $quote->id, 403);
         // Detach items (keep them as unsectioned)
         $section->items()->update(['quote_section_id' => null]);
@@ -633,8 +637,9 @@ class QuoteController extends Controller
             ->with('success', $request->decision === 'accepte' ? 'Devis accepté et chantier activé. Merci !' : 'Devis refusé.');
     }
 
-    private function authorizeQuote(Quote $quote): void
+    private function authorizeQuote(Quote $quote, string $permission = 'quotes.view'): void
     {
         abort_if($quote->company_id !== Auth::user()->company_id, 403);
+        $this->authorize($permission);
     }
 }

@@ -22,6 +22,10 @@ class DashboardController extends Controller
 
     public function index()
     {
+        if (auth()->user()->hasRole('chef_chantier')) {
+            return $this->chefChantierDashboard();
+        }
+
         $company = auth()->user()->company;
 
         // Projets par statut
@@ -108,5 +112,29 @@ class DashboardController extends Controller
             'activeProjectsHealth',
             'allStockAlerts'
         ));
+    }
+
+    private function chefChantierDashboard()
+    {
+        $projects = auth()->user()->managedProjects()->with('client')->orderBy('name')->get();
+
+        $projectsHealth = $projects->map(function ($project) {
+            $health = $project->status === 'en_cours'
+                ? $this->analytics->getProjectHealth($project)
+                : ['progress_percent' => null, 'budget_consumption_percent' => null, 'drift_alert' => false];
+
+            return array_merge([
+                'id'                 => $project->id,
+                'name'               => $project->name,
+                'reference'          => $project->reference,
+                'client'             => $project->client,
+                'status_libelle'     => $project->status_libelle,
+                'status_badge_class' => $project->status_badge_class,
+            ], $health);
+        });
+
+        $activeProjectsCount = $projects->where('status', 'en_cours')->count();
+
+        return view('dashboard-chef-chantier', compact('projectsHealth', 'activeProjectsCount'));
     }
 }

@@ -235,11 +235,13 @@
                             <span class="badge rounded-pill bg-light text-primary ms-1">{{ $eqCount }}</span>
                         </button>
                     </li>
+                    @can('quotes.view')
                     <li class="nav-item">
                         <button class="nav-link rounded-3 py-2 px-3 d-flex align-items-center justify-content-center gap-2" :class="{ 'active shadow-sm': activeTab === 'quotes' }" @click="activeTab = 'quotes'">
                             <i class="bi bi-file-earmark-text"></i> <span>Devis & Factures</span>
                         </button>
                     </li>
+                    @endcan
                     <li class="nav-item">
                         <button class="nav-link rounded-3 py-2 px-3 d-flex align-items-center justify-content-center gap-2" :class="{ 'active shadow-sm': activeTab === 'history' }" @click="activeTab = 'history'">
                             <i class="bi bi-clock-history"></i> <span>Historique</span>
@@ -1012,6 +1014,7 @@
             </div>
 
             {{-- Devis & Factures --}}
+            @can('quotes.view')
             <div x-show="activeTab === 'quotes'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">
                 <div class="row g-4">
                     <div class="col-md-6">
@@ -1090,6 +1093,7 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
             {{-- Historique --}}
             <div x-show="activeTab === 'history'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">

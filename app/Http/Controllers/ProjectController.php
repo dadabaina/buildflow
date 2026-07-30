@@ -13,7 +13,13 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
+        $isChefChantier = Auth::user()->hasRole('chef_chantier');
+        $managedProjectIds = $isChefChantier ? Auth::user()->managedProjects()->pluck('projects.id') : null;
+
         $query = Project::with(['client', 'region', 'amendments'])->latest();
+        if ($isChefChantier) {
+            $query->whereIn('id', $managedProjectIds);
+        }
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -32,10 +38,11 @@ class ProjectController extends Controller
         $statuses = array_keys(Project::$statusTransitions);
         $clients  = Client::orderBy('name')->get();
 
+        $statsBase = $isChefChantier ? Project::whereIn('id', $managedProjectIds) : Project::query();
         $stats = [
-            'total_count'    => Project::count(),
-            'active_count'   => Project::where('status', 'en_cours')->count(),
-            'total_contract' => Project::sum('contract_amount') + \App\Models\Amendment::where('status', 'accepte')->sum('total_ttc'),
+            'total_count'    => (clone $statsBase)->count(),
+            'active_count'   => (clone $statsBase)->where('status', 'en_cours')->count(),
+            'total_contract' => (clone $statsBase)->sum('contract_amount') + \App\Models\Amendment::whereIn('project_id', $isChefChantier ? $managedProjectIds : (clone $statsBase)->pluck('id'))->where('status', 'accepte')->sum('total_ttc'),
         ];
 
         return view('projects.index', compact('projects', 'statuses', 'clients', 'stats'));

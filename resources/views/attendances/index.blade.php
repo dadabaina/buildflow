@@ -102,7 +102,38 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($att->photo_path)
+                                    @if($att->photo_path_in || $att->photo_path_out)
+                                        <div class="d-flex gap-1">
+                                            @if($att->photo_path_in)
+                                                <a href="{{ asset('storage/' . $att->photo_path_in) }}" target="_blank">
+                                                    <img src="{{ asset('storage/' . $att->photo_path_in) }}"
+                                                         class="rounded-circle shadow-sm"
+                                                         style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
+                                                         title="Photo d'entrée (Kiosque)"
+                                                         alt="Photo d'entrée">
+                                                </a>
+                                            @else
+                                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted"
+                                                     style="width: 32px; height: 32px; border: 2px solid #fff;" title="Pas de photo d'entrée">
+                                                    <i class="bx bx-log-in-circle small"></i>
+                                                </div>
+                                            @endif
+                                            @if($att->photo_path_out)
+                                                <a href="{{ asset('storage/' . $att->photo_path_out) }}" target="_blank">
+                                                    <img src="{{ asset('storage/' . $att->photo_path_out) }}"
+                                                         class="rounded-circle shadow-sm"
+                                                         style="width: 32px; height: 32px; object-fit: cover; border: 2px solid #fff;"
+                                                         title="Photo de sortie (Kiosque)"
+                                                         alt="Photo de sortie">
+                                                </a>
+                                            @else
+                                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-muted"
+                                                     style="width: 32px; height: 32px; border: 2px solid #fff;" title="Pas de photo de sortie">
+                                                    <i class="bx bx-log-out-circle small"></i>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @elseif($att->photo_path)
                                         <a href="{{ asset('storage/' . $att->photo_path) }}" target="_blank">
                                             <img src="{{ asset('storage/' . $att->photo_path) }}"
                                                  class="rounded-circle shadow-sm"
