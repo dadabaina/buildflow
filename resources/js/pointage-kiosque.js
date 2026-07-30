@@ -118,6 +118,46 @@ async function trySyncQueue() {
     }
 }
 
+function setButtonSending(form) {
+    const button = form.querySelector('button');
+    if (!button) return;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Envoi en cours…';
+}
+
+// Compresse la photo côté téléphone avant l'envoi : les photos brutes d'un
+// smartphone (plusieurs Mo) rendent l'upload très lent sur un réseau de
+// chantier. On la redimensionne et on la réencode en JPEG ici — le serveur
+// la retraite de toute façon (scaleDown + WebP), donc seule la taille du
+// transfert réseau compte ici.
+function compressPhoto(file, maxDim = 1000, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round(height * (maxDim / width));
+                    width = maxDim;
+                } else {
+                    width = Math.round(width * (maxDim / height));
+                    height = maxDim;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
 function updateOfflineBanner() {
     const banner = document.getElementById('pointage-offline-banner');
     if (!banner) return;
@@ -136,11 +176,18 @@ function initKiosque() {
     forms.forEach((form) => {
         const fileInput = form.querySelector('input[type="file"]');
         fileInput.addEventListener('change', async (e) => {
-            const photo = e.target.files[0];
-            if (!photo) return;
+            const rawPhoto = e.target.files[0];
+            if (!rawPhoto) return;
+
+            // Retour visuel immédiat : l'envoi + la compression peuvent prendre
+            // quelques secondes sur un réseau de chantier, le bouton doit le
+            // montrer tout de suite plutôt que de sembler figé.
+            setButtonSending(form);
+
             const capturedAt = new Date().toISOString();
             const employeeId = form.dataset.employeeId;
             const action = form.dataset.action;
+            const photo = await compressPhoto(rawPhoto);
 
             if (navigator.onLine) {
                 try {

@@ -48,11 +48,15 @@ class PointageKioskController extends Controller
             'captured_at' => ['nullable', 'date'],
         ]);
 
-        // captured_at : horodatage pris côté appareil au moment de la photo (JS).
-        // Utilisé tel quel s'il est fourni — notamment pour une entrée mise en
-        // file d'attente hors-ligne et rejouée plus tard, où now() correspondrait
-        // au moment de la synchronisation, pas au moment réel du pointage.
-        $capturedAt = $request->filled('captured_at') ? \Carbon\Carbon::parse($request->input('captured_at')) : now();
+        // captured_at : horodatage pris côté appareil au moment de la photo (JS),
+        // envoyé en UTC (Date::toISOString()). Utilisé tel quel s'il est fourni —
+        // notamment pour une entrée mise en file d'attente hors-ligne et rejouée
+        // plus tard, où now() correspondrait au moment de la synchronisation, pas
+        // au moment réel du pointage — mais reconverti vers le fuseau de l'app
+        // (Indian/Antananarivo) pour que l'heure enregistrée soit l'heure locale.
+        $capturedAt = $request->filled('captured_at')
+            ? \Carbon\Carbon::parse($request->input('captured_at'))->setTimezone(config('app.timezone'))
+            : now();
 
         $attendance = Attendance::firstOrNew([
             'employee_id' => $employee->id,
@@ -85,7 +89,9 @@ class PointageKioskController extends Controller
             'captured_at' => ['nullable', 'date'],
         ]);
 
-        $capturedAt = $request->filled('captured_at') ? \Carbon\Carbon::parse($request->input('captured_at')) : now();
+        $capturedAt = $request->filled('captured_at')
+            ? \Carbon\Carbon::parse($request->input('captured_at'))->setTimezone(config('app.timezone'))
+            : now();
 
         $attendance = Attendance::where('employee_id', $employee->id)
             ->where('work_date', $capturedAt->toDateString())
