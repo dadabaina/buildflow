@@ -263,6 +263,11 @@ class Project extends Model
         return (float) $this->contract_amount + $this->total_amendments;
     }
 
+    public function getIsRegieAttribute(): bool
+    {
+        return (float) $this->contract_amount <= 0;
+    }
+
     public function canTransitionTo(string $newStatus): bool
     {
         return in_array($newStatus, static::$statusTransitions[$this->status] ?? []);

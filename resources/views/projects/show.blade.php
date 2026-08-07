@@ -31,6 +31,13 @@
                             <span class="badge rounded-pill {{ $sc['class'] }} bg-opacity-20 text-white border border-white border-opacity-25 px-3 py-2 mb-3">
                                 <i class="{{ $sc['icon'] }} me-1"></i> {{ $sc['label'] }}
                             </span>
+                            @if($project->is_regie)
+                            <span class="badge rounded-pill badge-soft-secondary bg-opacity-20 text-white border border-white border-opacity-25 px-3 py-2 mb-3"
+                                  data-bs-toggle="tooltip" data-bs-placement="top"
+                                  title="Aucun montant de marché défini : ce chantier est facturé et dépensé au fil de l'eau, sans devis de référence.">
+                                <i class="bi bi-cash-coin me-1"></i> Régie / sans devis
+                            </span>
+                            @endif
                             <h2 class="fw-bold mb-1 text-white">{{ $project->name }}</h2>
                             <p class="opacity-75 mb-0">
                                 <i class="bi bi-hash me-1"></i>{{ $project->reference }} 
@@ -144,6 +151,16 @@
                                 <i class="bi bi-piggy-bank fs-5"></i>
                             </div>
                             <div>
+                                @if($project->is_regie)
+                                <div class="text-muted small fw-medium text-uppercase">
+                                    Marge réalisée
+                                    <i class="bi bi-info-circle ms-1" style="cursor: help;"
+                                       data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="Chantier sans devis : Total Facturé − Total Dépenses. Un chiffre négatif signifie que les dépenses dépassent ce qui a été facturé."></i>
+                                </div>
+                                @php $margeRealisee = $project->total_invoiced - $totalExpenses; @endphp
+                                <div class="fw-bold fs-5 text-{{ $margeRealisee < 0 ? 'danger' : 'dark' }}">{{ number_format($margeRealisee, 0, ',', ' ') }} <small class="text-muted" style="font-size: 0.65rem">MGA</small></div>
+                                @else
                                 <div class="text-muted small fw-medium text-uppercase">
                                     Marge prév.
                                     <i class="bi bi-info-circle ms-1" style="cursor: help;"
@@ -152,11 +169,26 @@
                                 </div>
                                 @php $marginPercent = $project->budget > 0 ? (($project->budget - $totalExpenses) / $project->budget) * 100 : 0; @endphp
                                 <div class="fw-bold text-dark fs-5">{{ number_format($marginPercent, 1) }}%</div>
+                                @endif
                             </div>
                         </div>
                     </div>
                     <div id="tour-project-market-ratio" class="col-6 col-md">
                         <div class="d-flex align-items-center gap-3">
+                            @if($project->is_regie)
+                            <div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <i class="bi bi-receipt fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small fw-medium text-uppercase">
+                                    Facturé cumulé
+                                    <i class="bi bi-info-circle ms-1" style="cursor: help;"
+                                       data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="Chantier sans devis : total des factures émises (hors brouillons et annulées) depuis le début du chantier."></i>
+                                </div>
+                                <div class="fw-bold fs-5 text-dark">{{ number_format($project->total_invoiced, 0, ',', ' ') }} <small class="text-muted" style="font-size: 0.65rem">MGA</small></div>
+                            </div>
+                            @else
                             @php $marketRatio = $project->total_market_amount > 0 ? ($totalExpenses / $project->total_market_amount) * 100 : 0; @endphp
                             <div class="bg-{{ $marketRatio > 100 ? 'danger' : 'warning' }}-subtle text-{{ $marketRatio > 100 ? 'danger' : 'warning' }} rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-percent fs-5"></i>
@@ -170,6 +202,7 @@
                                 </div>
                                 <div class="fw-bold fs-5 text-{{ $marketRatio > 100 ? 'danger' : 'dark' }}">{{ number_format($marketRatio, 1) }}%</div>
                             </div>
+                            @endif
                         </div>
                     </div>
                 </div>
