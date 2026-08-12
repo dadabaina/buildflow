@@ -133,7 +133,9 @@
                             <th class="py-3 border-0 small text-uppercase text-muted">Client</th>
                             <th class="py-3 border-0 small text-uppercase text-muted">Statut</th>
                             <th class="py-3 border-0 small text-uppercase text-muted">Progression</th>
+                            @unless(auth()->user()->hasRole('chef_chantier'))
                             <th class="py-3 border-0 small text-uppercase text-muted text-end">Montant Marché</th>
+                            @endunless
                             <th class="py-3 border-0 small text-uppercase text-muted text-end">Facturé</th>
                             <th class="py-3 border-0 small text-uppercase text-muted text-center">Début</th>
                             <th class="pe-4 py-3 border-0 small text-uppercase text-muted text-end">Actions</th>
@@ -174,9 +176,11 @@
                                     <small class="text-muted fw-bold">{{ $project->progress_percent }}%</small>
                                 </div>
                             </td>
+                            @unless(auth()->user()->hasRole('chef_chantier'))
                             <td class="text-end fw-bold text-dark">
                                 {{ number_format($project->total_market_amount, 0, ',', ' ') }} <small class="text-muted fw-normal">Ar</small>
                             </td>
+                            @endunless
                             <td class="text-end fw-bold text-primary">
                                 {{ number_format($project->total_invoiced, 0, ',', ' ') }} <small class="text-muted fw-normal">Ar</small>
                             </td>

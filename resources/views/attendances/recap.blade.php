@@ -56,6 +56,9 @@
                             <th class="text-end">Heures totales</th>
                             <th class="text-end">Taux journalier</th>
                             <th class="text-end">Salaire estimé</th>
+                            @can('salary_payments.create')
+                            <th class="text-end">Action</th>
+                            @endcan
                         </tr>
                     </thead>
                     <tbody>
@@ -69,9 +72,21 @@
                                 <td class="text-end">{{ number_format($row['total_hours'], 2, ',', ' ') }} h</td>
                                 <td class="text-end">{{ number_format($row['daily_rate'], 2, ',', ' ') }} Ar</td>
                                 <td class="text-end fw-bold text-primary">{{ number_format($row['salary_est'], 2, ',', ' ') }} Ar</td>
+                                @can('salary_payments.create')
+                                <td class="text-end">
+                                    <a href="{{ route('salary-payments.create', [
+                                            'employee_id' => $row['employee']->id,
+                                            'period_start' => \Carbon\Carbon::createFromFormat('Y-m', $month)->startOfMonth()->format('Y-m-d'),
+                                            'period_end' => \Carbon\Carbon::createFromFormat('Y-m', $month)->endOfMonth()->format('Y-m-d'),
+                                        ]) }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-cash-coin me-1"></i>Saisir paiement
+                                    </a>
+                                </td>
+                                @endcan
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted py-4">Aucun pointage présent pour cette période.</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted py-4">Aucun pointage présent pour cette période.</td></tr>
                         @endforelse
                     </tbody>
                     @if($rows->count())

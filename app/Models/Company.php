@@ -85,6 +85,11 @@ class Company extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function salaryPayments()
+    {
+        return $this->hasMany(SalaryPayment::class);
+    }
+
     public function expenses()
     {
         return $this->hasMany(Expense::class);

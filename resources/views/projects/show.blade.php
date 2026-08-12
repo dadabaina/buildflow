@@ -128,6 +128,22 @@
                     </div>
                     <div class="col-6 col-md border-end border-light">
                         <div class="d-flex align-items-center gap-3">
+                            <div class="bg-warning-subtle text-warning rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <i class="bi bi-people-fill fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small fw-medium text-uppercase">
+                                    Masse salariale
+                                    <i class="bi bi-info-circle ms-1" style="cursor: help;"
+                                       data-bs-toggle="tooltip" data-bs-placement="top"
+                                       title="Total des paiements salariés ventilés sur ce chantier. Distinct des dépenses générales."></i>
+                                </div>
+                                <div class="fw-bold text-warning fs-5">{{ number_format($project->total_labor_cost, 0, ',', ' ') }} <small class="opacity-50" style="font-size: 0.65rem">MGA</small></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md border-end border-light">
+                        <div class="d-flex align-items-center gap-3">
                             <div class="bg-success-subtle text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                                 <i class="bi bi-graph-up-arrow fs-5"></i>
                             </div>
@@ -232,6 +248,14 @@
                             <span class="badge rounded-pill bg-light text-primary ms-1">{{ $project->expenses->count() }}</span>
                         </button>
                     </li>
+                    @can('salary_payments.view')
+                    <li class="nav-item">
+                        <button class="nav-link rounded-3 py-2 px-3 d-flex align-items-center justify-content-center gap-2" :class="{ 'active shadow-sm': activeTab === 'payroll' }" @click="activeTab = 'payroll'">
+                            <i class="bi bi-people-fill"></i> <span>Masse salariale</span>
+                            <span class="badge rounded-pill bg-light text-primary ms-1">{{ $project->salaryPayments->count() }}</span>
+                        </button>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <button class="nav-link rounded-3 py-2 px-3 d-flex align-items-center justify-content-center gap-2" :class="{ 'active shadow-sm': activeTab === 'bc' }" @click="activeTab = 'bc'">
                             <i class="bi bi-cart3"></i> <span>BCs</span>
@@ -326,6 +350,7 @@
                         </x-card>
                     </div>
                     <div class="col-lg-5">
+                        @unless(auth()->user()->hasRole('chef_chantier'))
                         <x-card title="Récapitulatif Financier" icon="bi bi-pie-chart">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
@@ -354,6 +379,7 @@
                                 </li>
                             </ul>
                         </x-card>
+                        @endunless
 
                         {{-- Activité Récente --}}
                         <x-card title="Activité Récente" icon="bi bi-activity" class="mt-4 shadow-none border">
@@ -502,6 +528,9 @@
                                             <th class="border-0">Collaborateur</th>
                                             <th class="border-0 text-center">Postes</th>
                                             <th class="border-0">Contact</th>
+                                            @can('employees.edit')
+                                            <th class="border-0">Tarif sur ce chantier</th>
+                                            @endcan
                                             <th class="border-0 text-end">Action</th>
                                         </tr>
                                     </thead>
@@ -531,6 +560,21 @@
                                                 @endforeach
                                             </td>
                                             <td><div style="font-size: 0.75rem;"><i class="bi bi-telephone me-1 text-muted"></i>{{ $emp->phone ?? '—' }}</div></td>
+                                            @can('employees.edit')
+                                            <td>
+                                                <div style="font-size: 0.7rem;">
+                                                    @if($emp->pivot->payment_frequency)
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis">Négocié</span>
+                                                        {{ ucfirst($emp->pivot->payment_frequency) }}
+                                                    @else
+                                                        <span class="text-muted">Par défaut ({{ $emp->payment_frequency_libelle }})</span>
+                                                    @endif
+                                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" data-bs-toggle="modal" data-bs-target="#rateModal{{ $emp->id }}" title="Modifier le tarif sur ce chantier">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            @endcan
                                             <td class="text-end">
                                                 <a href="{{ route('employees.show', $emp) }}" class="btn-action-view me-1"><i class="bi bi-eye"></i></a>
                                                 @can('projects.edit')
@@ -542,7 +586,7 @@
                                             </td>
                                         </tr>
                                         @empty
-                                        <tr><td colspan="4" class="text-center py-5 text-muted">Aucun membre assigné.</td></tr>
+                                        <tr><td colspan="5" class="text-center py-5 text-muted">Aucun membre assigné.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -551,6 +595,55 @@
                     </div>
                 </div>
             </div>
+
+            @can('employees.edit')
+            @foreach($project->employees as $emp)
+            <div class="modal fade" id="rateModal{{ $emp->id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ route('projects.employees.rate', [$project, $emp]) }}">
+                            @csrf @method('PATCH')
+                            <div class="modal-header">
+                                <h6 class="modal-title">Tarif de {{ $emp->full_name }} sur ce chantier</h6>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted small">Laissez un champ vide pour utiliser la valeur par défaut du salarié.</p>
+                                <div class="mb-3">
+                                    <label class="form-label small">Modalité de paiement</label>
+                                    <select name="payment_frequency" class="form-select form-select-sm">
+                                        <option value="">— Valeur par défaut ({{ $emp->payment_frequency_libelle }}) —</option>
+                                        <option value="journalier" {{ $emp->pivot->payment_frequency === 'journalier' ? 'selected' : '' }}>Journalier</option>
+                                        <option value="hebdomadaire" {{ $emp->pivot->payment_frequency === 'hebdomadaire' ? 'selected' : '' }}>Hebdomadaire</option>
+                                        <option value="mensuel" {{ $emp->pivot->payment_frequency === 'mensuel' ? 'selected' : '' }}>Mensuel</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small">Taux journalier négocié (MGA)</label>
+                                    <input type="number" name="daily_rate" class="form-control form-control-sm" step="0.01" min="0"
+                                           placeholder="Défaut : {{ $emp->daily_rate ?? '—' }}" value="{{ $emp->pivot->daily_rate }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small">Taux hebdomadaire négocié (MGA)</label>
+                                    <input type="number" name="weekly_rate" class="form-control form-control-sm" step="0.01" min="0"
+                                           placeholder="Défaut : {{ $emp->weekly_rate ?? '—' }}" value="{{ $emp->pivot->weekly_rate }}">
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label small">Salaire mensuel négocié (MGA)</label>
+                                    <input type="number" name="monthly_salary" class="form-control form-control-sm" step="0.01" min="0"
+                                           placeholder="Défaut : {{ $emp->monthly_salary ?? '—' }}" value="{{ $emp->pivot->monthly_salary }}">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @endforeach
+            @endcan
 
             {{-- Dépenses --}}
             <div x-show="activeTab === 'expenses'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">
@@ -611,6 +704,51 @@
                     </div>
                 </x-card>
             </div>
+
+            {{-- Masse salariale : strictement séparée du journal des dépenses ci-dessus --}}
+            @can('salary_payments.view')
+            <div x-show="activeTab === 'payroll'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">
+                <x-card title="Paiements salariés — Masse salariale du chantier" icon="bi bi-people-fill">
+                    <x-slot name="headerActions">
+                        @can('salary_payments.create')
+                        <a href="{{ route('salary-payments.create', ['project_id' => $project->id]) }}" class="btn btn-sm btn-primary px-3 shadow-sm-app">
+                            <i class="bi bi-plus-lg me-1"></i>Nouveau paiement salarié
+                        </a>
+                        @endcan
+                    </x-slot>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0">Date</th>
+                                    <th class="border-0">Salarié</th>
+                                    <th class="border-0">Mode</th>
+                                    <th class="border-0 text-end">Montant ventilé sur ce chantier</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($project->salaryPayments as $sp)
+                                <tr>
+                                    <td class="small">{{ $sp->payment_date?->format('d/m/Y') }}</td>
+                                    <td class="fw-bold small">{{ $sp->employee?->full_name }}</td>
+                                    <td class="small">{{ $sp->payment_mode ?? '—' }}</td>
+                                    <td class="text-end fw-medium text-warning">{{ number_format($sp->pivot->amount, 0, ',', ' ') }}</td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="4" class="text-center py-5 text-muted">Aucun paiement salarié enregistré pour ce chantier.</td></tr>
+                                @endforelse
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total masse salariale</td>
+                                    <td class="text-end fw-bold text-warning">{{ number_format($project->total_labor_cost, 0, ',', ' ') }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </x-card>
+            </div>
+            @endcan
 
             {{-- Bons de commande --}}
             <div x-show="activeTab === 'bc'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2">

@@ -14,7 +14,7 @@ class Attendance extends Model
     const DEFAULT_BREAK_HOURS = 1.0;
 
     protected $fillable = [
-        'company_id', 'project_id', 'employee_id', 'created_by',
+        'company_id', 'project_id', 'employee_id', 'task_id', 'task_note', 'created_by',
         'checked_in_by', 'checked_out_by',
         'work_date', 'photo_path', 'photo_path_in', 'photo_path_out',
         'check_in', 'check_out', 'break_hours',
@@ -34,6 +34,7 @@ class Attendance extends Model
     public function company()     { return $this->belongsTo(Company::class); }
     public function project()     { return $this->belongsTo(Project::class); }
     public function employee()    { return $this->belongsTo(Employee::class); }
+    public function task()        { return $this->belongsTo(Task::class); }
     public function createdBy()   { return $this->belongsTo(User::class, 'created_by'); }
     public function checkedInBy() { return $this->belongsTo(User::class, 'checked_in_by'); }
     public function checkedOutBy(){ return $this->belongsTo(User::class, 'checked_out_by'); }

@@ -21,6 +21,7 @@ use App\Http\Controllers\DosageController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\SalaryPaymentController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\AmendmentController;
 use App\Http\Controllers\ProgressBillingController;
@@ -87,6 +88,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         ->name('projects.employees.sync');
     Route::delete('projects/{project}/employees/{employee}', [ProjectController::class, 'detachEmployee'])
         ->name('projects.employees.detach');
+    Route::patch('projects/{project}/employees/{employee}/rate', [SalaryPaymentController::class, 'updateEmployeeRate'])
+        ->name('projects.employees.rate');
     Route::post('projects/{project}/thresholds', [ProjectController::class, 'updateThreshold'])
         ->name('projects.thresholds.update');
     Route::post('projects/{project}/equipments', [ProjectController::class, 'assignEquipment'])
@@ -214,7 +217,14 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // ── Wave 8 : Pointage ────────────────────────────────────────────────────
     Route::get('attendances/recap', [AttendanceController::class, 'recap'])->name('attendances.recap');
     Route::get('attendances/recap/export', [AttendanceController::class, 'exportCsv'])->name('attendances.recap.export');
+    Route::patch('attendances/{attendance}/task', [AttendanceController::class, 'updateTask'])->name('attendances.task.update');
     Route::resource('attendances', AttendanceController::class)->except(['show']);
+
+    // Paiements salariés
+    Route::get('salary-payments/attendance-recap', [SalaryPaymentController::class, 'attendanceRecap'])
+        ->name('salary-payments.attendance-recap');
+    Route::resource('salary-payments', SalaryPaymentController::class)
+        ->only(['index', 'create', 'store', 'destroy']);
 
     // Kiosque pointage (Entrée/Sortie terrain)
     Route::get('pointage', [\App\Http\Controllers\PointageKioskController::class, 'index'])->name('pointage.kiosque');

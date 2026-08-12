@@ -19,6 +19,13 @@
                       action="{{ isset($attendance) ? route('attendances.update', $attendance) : route('attendances.store') }}"
                       enctype="multipart/form-data"
                       x-data="{
+                          projectId: '{{ old('project_id', $attendance->project_id ?? $selected ?? '') }}',
+                          employeeId: '{{ old('employee_id', $attendance->employee_id ?? '') }}',
+                          taskId: '{{ old('task_id', $attendance->task_id ?? '') }}',
+                          projectEmployees: {{ json_encode($projectEmployeesMap) }},
+                          projectTasks: {{ json_encode($projectTasksMap) }},
+                          get availableEmployees() { return this.projectEmployees[this.projectId] || []; },
+                          get availableTasks() { return this.projectTasks[this.projectId] || []; },
                           checkIn: '{{ old('check_in', isset($attendance) && $attendance->check_in ? substr($attendance->check_in, 0, 5) : '') }}',
                           checkOut: '{{ old('check_out', isset($attendance) && $attendance->check_out ? substr($attendance->check_out, 0, 5) : '') }}',
                           breakHours: '{{ old('break_hours', $attendance->break_hours ?? '1') }}',
@@ -45,9 +52,44 @@
 
                     <div class="card-body">
                         <div class="row g-3">
-                            <div class="col-12 text-center mb-3">
+
+                            <div class="col-12">
+                                <h6 class="text-muted border-bottom pb-1 mb-0"><i class="bi bi-diagram-3 me-1"></i>1. Chantier &amp; salarié affecté</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chantier <span class="text-danger">*</span></label>
+                                <select name="project_id" class="form-select @error('project_id') is-invalid @enderror"
+                                        x-model="projectId" @change="employeeId = ''; taskId = ''" required>
+                                    <option value="">— Choisir —</option>
+                                    @foreach($projects as $p)
+                                        <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('project_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Employé <span class="text-danger">*</span></label>
+                                <select name="employee_id" class="form-select @error('employee_id') is-invalid @enderror"
+                                        x-model="employeeId" x-init="$nextTick(() => { $el.value = employeeId })"
+                                        :disabled="!projectId" required>
+                                    <option value="">— Choisir —</option>
+                                    <template x-for="emp in availableEmployees" :key="emp.id">
+                                        <option :value="emp.id" x-text="emp.label"></option>
+                                    </template>
+                                </select>
+                                <template x-if="projectId && availableEmployees.length === 0">
+                                    <div class="form-text text-warning">Aucun salarié actif affecté à ce chantier.</div>
+                                </template>
+                                @error('employee_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="text-muted border-bottom pb-1 mb-0"><i class="bi bi-clock me-1"></i>2. Présence &amp; horaires</h6>
+                            </div>
+
+                            <div class="col-12 text-center">
                                 <label class="form-label d-block fw-bold">Photo de présence (Temps réel)</label>
-                                <div class="mx-auto border rounded bg-light d-flex align-items-center justify-content-center overflow-hidden" 
+                                <div class="mx-auto border rounded bg-light d-flex align-items-center justify-content-center overflow-hidden"
                                      style="width: 200px; height: 150px; cursor: pointer;"
                                      onclick="document.getElementById('photo-input').click()">
                                     <template x-if="photoPreview">
@@ -60,37 +102,11 @@
                                         </div>
                                     </template>
                                 </div>
-                                <input type="file" name="photo" id="photo-input" class="d-none" 
+                                <input type="file" name="photo" id="photo-input" class="d-none"
                                        accept="image/*" capture="camera" @change="handlePhoto">
                                 @error('photo')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                             </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Chantier <span class="text-danger">*</span></label>
-                                <select name="project_id" class="form-select @error('project_id') is-invalid @enderror" required>
-                                    <option value="">— Choisir —</option>
-                                    @foreach($projects as $p)
-                                        <option value="{{ $p->id }}"
-                                            @selected(old('project_id', $attendance->project_id ?? $selected) == $p->id)>
-                                            {{ $p->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('project_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Employé <span class="text-danger">*</span></label>
-                                <select name="employee_id" class="form-select @error('employee_id') is-invalid @enderror" required>
-                                    <option value="">— Choisir —</option>
-                                    @foreach($employees as $emp)
-                                        <option value="{{ $emp->id }}"
-                                            @selected(old('employee_id', $attendance->employee_id ?? '') == $emp->id)>
-                                            {{ $emp->first_name }} {{ $emp->last_name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('employee_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">Date <span class="text-danger">*</span></label>
                                 <input type="date" name="work_date" class="form-control @error('work_date') is-invalid @enderror"
@@ -140,8 +156,36 @@
                                 <input type="hidden" name="hours_worked" :value="hours">
                             </div>
 
+                            <div class="col-12 mt-4">
+                                <h6 class="text-muted border-bottom pb-1 mb-0"><i class="bi bi-list-task me-1"></i>3. Tâche réalisée</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tâche</label>
+                                <select name="task_id" class="form-select @error('task_id') is-invalid @enderror"
+                                        x-model="taskId" x-init="$nextTick(() => { $el.value = taskId })"
+                                        :disabled="!projectId">
+                                    <option value="">— Aucune / non précisée —</option>
+                                    <template x-for="t in availableTasks" :key="t.id">
+                                        <option :value="t.id" x-text="t.label"></option>
+                                    </template>
+                                </select>
+                                <template x-if="projectId && availableTasks.length === 0">
+                                    <div class="form-text text-muted">Aucune tâche définie sur ce chantier.</div>
+                                </template>
+                                @error('task_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Précision libre</label>
+                                <input type="text" name="task_note" class="form-control @error('task_note') is-invalid @enderror"
+                                       value="{{ old('task_note', $attendance->task_note ?? '') }}"
+                                       placeholder="Si la tâche n'est pas dans la liste, ou détail complémentaire" maxlength="255">
+                                @error('task_note')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="text-muted border-bottom pb-1 mb-0">4. Notes</h6>
+                            </div>
                             <div class="col-12">
-                                <label class="form-label">Notes</label>
                                 <textarea name="notes" class="form-control" rows="2">{{ old('notes', $attendance->notes ?? '') }}</textarea>
                             </div>
                         </div>

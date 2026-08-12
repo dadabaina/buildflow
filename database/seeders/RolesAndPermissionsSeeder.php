@@ -37,6 +37,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete',
             // Pointage
             'attendances.view', 'attendances.create', 'attendances.edit', 'attendances.delete',
+            // Paiements salariés
+            'salary_payments.view', 'salary_payments.create', 'salary_payments.delete',
             // Matériaux
             'materials.view', 'materials.create', 'materials.edit', 'materials.delete',
             // Dosage DBE
@@ -95,6 +97,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'purchase_orders.view', 'purchase_orders.create', 'purchase_orders.edit',
             'tasks.view', 'tasks.create', 'tasks.edit',
             'attendances.view', 'attendances.create', 'attendances.edit',
+            'salary_payments.view', 'salary_payments.create', 'salary_payments.delete',
             'documents.view', 'documents.create',
             'materials.view', 'materials.create', 'materials.edit',
             'dosage.view', 'dosage.create', 'dosage.edit',
@@ -118,6 +121,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'quotes.view',
             'invoices.view', 'invoices.create', 'invoices.edit', 'invoices.send',
             'payments.view', 'payments.create',
+            'salary_payments.view', 'salary_payments.create', 'salary_payments.delete',
             'reports.view',
         ]);
 
@@ -137,6 +141,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete',
             'expenses.view', 'expenses.create', 'expenses.edit',
             'attendances.view', 'attendances.create',
+            'salary_payments.view',
             'documents.view', 'documents.create',
         ]);
     }

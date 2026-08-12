@@ -3,18 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
-use App\Models\Employee;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Intervention\Image\Laravel\Facades\Image;
 
 class AttendanceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Attendance::with(['project', 'employee'])->orderByDesc('work_date');
+        $query = Attendance::with(['project.tasks', 'employee'])->orderByDesc('work_date');
         if (Auth::user()->hasRole('chef_chantier')) {
             $query->whereIn('project_id', Auth::user()->managedProjects()->pluck('projects.id'));
         }
@@ -35,23 +35,21 @@ class AttendanceController extends Controller
             $query->where('status', $status);
         }
 
-        $attendances = $query->paginate(25)->withQueryString();
+        $attendances = $query->with('task')->paginate(25)->withQueryString();
         $projects    = Auth::user()->hasRole('chef_chantier')
             ? Auth::user()->managedProjects()->orderBy('name')->get()
             : Project::orderBy('name')->get();
-        $employees   = Employee::orderBy('last_name')->get();
+        $employees   = Auth::user()->company->employees()->orderBy('last_name')->get();
 
         return view('attendances.index', compact('attendances', 'projects', 'employees'));
     }
 
     public function create(Request $request)
     {
-        $projects  = Auth::user()->hasRole('chef_chantier')
-            ? Auth::user()->managedProjects()->orderBy('name')->get()
-            : Project::orderBy('name')->get();
-        $employees = Employee::orderBy('last_name')->get();
-        $selected  = $request->input('project_id');
-        return view('attendances.form', compact('projects', 'employees', 'selected'));
+        [$projects, $projectEmployeesMap, $projectTasksMap] = $this->projectsWithMaps();
+        $selected = $request->input('project_id');
+
+        return view('attendances.form', compact('projects', 'selected', 'projectEmployeesMap', 'projectTasksMap'));
     }
 
     public function store(Request $request)
@@ -73,16 +71,26 @@ class AttendanceController extends Controller
 
     public function edit(Attendance $attendance)
     {
+        $this->authorize('attendances.edit');
         $this->authorizeProjectScope($attendance->project_id);
-        $projects  = Auth::user()->hasRole('chef_chantier')
-            ? Auth::user()->managedProjects()->orderBy('name')->get()
-            : Project::orderBy('name')->get();
-        $employees = Employee::orderBy('last_name')->get();
-        return view('attendances.form', compact('attendance', 'projects', 'employees'));
+        [$projects, $projectEmployeesMap, $projectTasksMap] = $this->projectsWithMaps();
+
+        // Union défensive : si le salarié/la tâche de ce pointage historique n'est plus
+        // dans la liste filtrée (désaffecté depuis, tâche supprimée...), on l'ajoute quand
+        // même pour ce chantier afin que le select ne soit pas vide à l'édition.
+        if ($attendance->employee && !collect($projectEmployeesMap[$attendance->project_id] ?? [])->contains('id', $attendance->employee_id)) {
+            $projectEmployeesMap[$attendance->project_id][] = ['id' => $attendance->employee->id, 'label' => $attendance->employee->full_name];
+        }
+        if ($attendance->task && !collect($projectTasksMap[$attendance->project_id] ?? [])->contains('id', $attendance->task_id)) {
+            $projectTasksMap[$attendance->project_id][] = ['id' => $attendance->task->id, 'label' => $attendance->task->title];
+        }
+
+        return view('attendances.form', compact('attendance', 'projects', 'projectEmployeesMap', 'projectTasksMap'));
     }
 
     public function update(Request $request, Attendance $attendance)
     {
+        $this->authorize('attendances.edit');
         $this->authorizeProjectScope($attendance->project_id);
         $data = $this->validateAttendance($request);
         $this->authorizeProjectScope($data['project_id']);
@@ -103,6 +111,7 @@ class AttendanceController extends Controller
 
     public function destroy(Attendance $attendance)
     {
+        $this->authorize('attendances.delete');
         $this->authorizeProjectScope($attendance->project_id);
         if ($attendance->photo_path) {
             Storage::disk('public')->delete($attendance->photo_path);
@@ -110,6 +119,30 @@ class AttendanceController extends Controller
         $attendance->delete();
         return redirect()->route('attendances.index')
             ->with('success', 'Pointage supprimé.');
+    }
+
+    /**
+     * Endpoint étroit : modification de la seule tâche d'un pointage.
+     * Réservé au jour même — passé ce délai, seule l'édition complète
+     * (attendances.edit) permet de corriger un pointage historique, quel
+     * que soit le rôle (y compris admin/manager, par choix de design).
+     */
+    public function updateTask(Request $request, Attendance $attendance)
+    {
+        $this->authorize('attendances.view');
+        $this->authorizeProjectScope($attendance->project_id);
+        abort_unless($attendance->work_date->isToday(), 403, "Ce pointage ne peut plus être modifié : la journée est passée.");
+
+        $data = $request->validate([
+            'task_id'   => ['nullable', Rule::exists('tasks', 'id')->where(fn ($q) => $q->where('project_id', $attendance->project_id))],
+            'task_note' => ['nullable', 'string', 'max:255'],
+        ], [
+            'task_id.exists' => "Cette tâche n'appartient pas au chantier de ce pointage.",
+        ]);
+
+        $attendance->update($data);
+
+        return back()->with('success', 'Tâche mise à jour.');
     }
 
     public function recap(Request $request)
@@ -217,6 +250,33 @@ class AttendanceController extends Controller
 
     /* ── Helpers ─────────────────────────────────────────────── */
 
+    /**
+     * Chantiers visibles (scopés chef_chantier) avec, pour chacun, la liste des
+     * salariés activement affectés et des tâches du chantier — sert à la fois à
+     * peupler les selects du formulaire et à embarquer les maps JSON de filtrage
+     * dynamique côté client (comme dans salary-payments/form.blade.php).
+     */
+    private function projectsWithMaps(): array
+    {
+        $projects = (Auth::user()->hasRole('chef_chantier') ? Auth::user()->managedProjects() : Project::query())
+            ->orderBy('name')
+            ->with([
+                'employees' => fn ($q) => $q->wherePivot('is_active', true)->orderBy('last_name'),
+                'tasks' => fn ($q) => $q->orderBy('title'),
+            ])
+            ->get();
+
+        $employeesMap = $projects->mapWithKeys(fn ($p) => [
+            $p->id => $p->employees->map(fn ($e) => ['id' => $e->id, 'label' => $e->full_name])->values()->toArray(),
+        ])->toArray();
+
+        $tasksMap = $projects->mapWithKeys(fn ($p) => [
+            $p->id => $p->tasks->map(fn ($t) => ['id' => $t->id, 'label' => $t->title])->values()->toArray(),
+        ])->toArray();
+
+        return [$projects, $employeesMap, $tasksMap];
+    }
+
     private function validateAttendance(Request $request): array
     {
         // Strip seconds if browser or DB sends HH:MM:SS
@@ -229,7 +289,17 @@ class AttendanceController extends Controller
 
         return $request->validate([
             'project_id'  => ['required', 'exists:projects,id'],
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => [
+                'required',
+                Rule::exists('project_employees', 'employee_id')->where(function ($q) use ($request) {
+                    $q->where('project_id', $request->input('project_id'))->where('is_active', true);
+                }),
+            ],
+            'task_id'     => [
+                'nullable',
+                Rule::exists('tasks', 'id')->where(fn ($q) => $q->where('project_id', $request->input('project_id'))),
+            ],
+            'task_note'   => ['nullable', 'string', 'max:255'],
             'work_date'   => ['required', 'date'],
             'photo'       => ['nullable', 'image', 'max:5120'],
             'check_in'    => ['nullable', 'date_format:H:i'],
@@ -239,6 +309,9 @@ class AttendanceController extends Controller
             'days_worked' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'status'      => ['required', 'in:present,absent_justifie,absent_non_justifie'],
             'notes'       => ['nullable', 'string'],
+        ], [
+            'employee_id.exists' => "Ce salarié n'est pas affecté (ou plus actif) sur le chantier sélectionné.",
+            'task_id.exists' => "Cette tâche n'appartient pas au chantier sélectionné.",
         ]);
     }
 

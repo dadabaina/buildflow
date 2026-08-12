@@ -188,15 +188,35 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">Salaire journalier (MGA)</label>
+                                <label class="form-label">Modalité de paiement</label>
+                                <select name="payment_frequency" class="form-select @error('payment_frequency') is-invalid @enderror">
+                                    <option value="journalier" {{ old('payment_frequency', $employee->payment_frequency ?? 'journalier') === 'journalier' ? 'selected' : '' }}>Journalier</option>
+                                    <option value="hebdomadaire" {{ old('payment_frequency', $employee->payment_frequency ?? '') === 'hebdomadaire' ? 'selected' : '' }}>Hebdomadaire</option>
+                                    <option value="mensuel" {{ old('payment_frequency', $employee->payment_frequency ?? '') === 'mensuel' ? 'selected' : '' }}>Mensuel</option>
+                                </select>
+                                @error('payment_frequency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <div class="form-text">Modalité par défaut. Elle peut être adaptée pour un chantier précis depuis la fiche du chantier.</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Taux journalier indicatif (MGA)</label>
                                 <input type="number" name="daily_rate" class="form-control" step="0.01"
                                        value="{{ old('daily_rate', $employee->daily_rate ?? '') }}">
                             </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Salaire mensuel (MGA)</label>
+                            <div class="col-md-4">
+                                <label class="form-label">Taux hebdomadaire indicatif (MGA)</label>
+                                <input type="number" name="weekly_rate" class="form-control" step="0.01"
+                                       value="{{ old('weekly_rate', $employee->weekly_rate ?? '') }}">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Salaire mensuel indicatif (MGA)</label>
                                 <input type="number" name="monthly_salary" class="form-control" step="0.01"
                                        value="{{ old('monthly_salary', $employee->monthly_salary ?? '') }}">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-text">Ces montants sont indicatifs : ils pré-remplissent les formulaires mais peuvent être négociés différemment par chantier, et le montant réellement versé est toujours saisi lors du paiement.</div>
                             </div>
 
                             <div class="col-md-6">

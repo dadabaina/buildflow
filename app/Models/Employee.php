@@ -15,7 +15,8 @@ class Employee extends Model
         'company_id', 'job_type_id', 'region_id', 'supplier_id',
         'matricule', 'first_name', 'last_name', 'photo_path', 'email', 'phone',
         'address', 'birth_date', 'hire_date', 'end_date',
-        'contract_type', 'daily_rate', 'monthly_salary', 'rib', 'notes', 'is_active',
+        'contract_type', 'payment_frequency', 'daily_rate', 'weekly_rate', 'monthly_salary',
+        'rib', 'notes', 'is_active',
     ];
 
     protected $casts = [
@@ -24,6 +25,7 @@ class Employee extends Model
         'end_date' => 'date',
         'is_active' => 'boolean',
         'daily_rate' => 'decimal:2',
+        'weekly_rate' => 'decimal:2',
         'monthly_salary' => 'decimal:2',
     ];
 
@@ -55,13 +57,21 @@ class Employee extends Model
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'project_employees')
-            ->withPivot(['role', 'start_date', 'end_date', 'is_active'])
+            ->withPivot([
+                'role', 'start_date', 'end_date', 'is_active',
+                'payment_frequency', 'daily_rate', 'weekly_rate', 'monthly_salary',
+            ])
             ->withTimestamps();
     }
 
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function salaryPayments()
+    {
+        return $this->hasMany(SalaryPayment::class);
     }
 
     public function getFullNameAttribute(): string
@@ -84,5 +94,32 @@ class Employee extends Model
             'journalier' => 'Journalier',
             default => $this->contract_type,
         };
+    }
+
+    public function getPaymentFrequencyLibelleAttribute(): string
+    {
+        return match ($this->payment_frequency) {
+            'journalier' => 'Journalier',
+            'hebdomadaire' => 'Hebdomadaire',
+            'mensuel' => 'Mensuel',
+            default => $this->payment_frequency,
+        };
+    }
+
+    /**
+     * Modalité et taux effectifs pour un chantier donné : reprend l'override
+     * du pivot project_employees si défini, sinon retombe sur les valeurs
+     * par défaut du salarié.
+     */
+    public function effectiveRateFor(int $projectId): array
+    {
+        $pivot = $this->projects()->where('projects.id', $projectId)->first()?->pivot;
+
+        return [
+            'frequency' => $pivot?->payment_frequency ?? $this->payment_frequency,
+            'daily_rate' => $pivot?->daily_rate ?? $this->daily_rate,
+            'weekly_rate' => $pivot?->weekly_rate ?? $this->weekly_rate,
+            'monthly_salary' => $pivot?->monthly_salary ?? $this->monthly_salary,
+        ];
     }
 }

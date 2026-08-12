@@ -71,7 +71,10 @@ class Project extends Model
     public function employees()
     {
         return $this->belongsToMany(Employee::class, 'project_employees')
-            ->withPivot(['role', 'start_date', 'end_date', 'is_active'])
+            ->withPivot([
+                'role', 'start_date', 'end_date', 'is_active',
+                'payment_frequency', 'daily_rate', 'weekly_rate', 'monthly_salary',
+            ])
             ->withTimestamps();
     }
 
@@ -98,6 +101,13 @@ class Project extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function salaryPayments()
+    {
+        return $this->belongsToMany(SalaryPayment::class, 'salary_payment_allocations')
+            ->withPivot('amount')
+            ->withTimestamps();
     }
 
     public function purchaseOrders()
@@ -237,6 +247,15 @@ class Project extends Model
         return (float) $this->expenses()
             ->where('status', 'validee')
             ->sum('total_amount');
+    }
+
+    /**
+     * Masse salariale du chantier : strictement séparée des dépenses
+     * générales (getTotalExpensesAttribute), jamais agrégée en base avec elles.
+     */
+    public function getTotalLaborCostAttribute(): float
+    {
+        return (float) $this->salaryPayments()->sum('salary_payment_allocations.amount');
     }
 
     public function getTotalInvoicedAttribute(): float

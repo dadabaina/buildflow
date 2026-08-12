@@ -80,11 +80,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // Init helpers & misc
   // --------------------
 
-  // Init BS Tooltip
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-  });
+  // Note : l'initialisation des tooltips Bootstrap (data-bs-toggle="tooltip") est
+  // déjà faite dans resources/js/app.js (dans un DOMContentLoaded, une fois que
+  // window.bootstrap est défini). La faire ici aussi provoquait un
+  // "ReferenceError: bootstrap is not defined" car ce script s'exécute avant
+  // app.js et ne dépend d'aucun DOMContentLoaded pour temporiser l'appel.
 
   // Accordion active class
   const accordionActiveFunction = function (e) {

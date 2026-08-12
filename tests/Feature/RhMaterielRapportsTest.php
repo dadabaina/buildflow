@@ -32,6 +32,9 @@ class RhMaterielRapportsTest extends RecetteTestCase
         $employee = Employee::first();
         $this->assertNotNull($employee);
 
+        // Le pointage n'est proposé/accepté que pour un salarié affecté au chantier.
+        $project->employees()->attach($employee->id, ['is_active' => true]);
+
         $this->post(route('attendances.store'), [
             'project_id' => $project->id, 'employee_id' => $employee->id,
             'work_date' => now()->toDateString(), 'status' => 'present',

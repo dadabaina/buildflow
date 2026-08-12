@@ -33,6 +33,7 @@
         $canProjects = $isAdmin || $user->can('projects.view');
         $canTasks = $isAdmin || $user->can('tasks.view');
         $canAttendances = $isAdmin || $user->can('attendances.view');
+        $canSalaryPayments = $isAdmin || $user->can('salary_payments.view');
         $canDocuments = $isAdmin || $user->can('documents.view');
         $canSiteReports = $isAdmin || $user->can('site_reports.view');
         $canReceptionReports = $isAdmin || $user->can('reception_reports.view');
@@ -56,7 +57,7 @@
         $canUsers = $isAdmin || $user->can('users.view');
         $canRoles = $isAdmin || $user->can('roles.view');
 
-        $showExploitation = $canProjects || $canTasks || $canAttendances || $canDocuments || $canSiteReports || $canReceptionReports;
+        $showExploitation = $canProjects || $canTasks || $canAttendances || $canSalaryPayments || $canDocuments || $canSiteReports || $canReceptionReports;
         $showRapportsTerrain = $canSiteReports || $canReceptionReports;
         $showLogistique = $canSuppliers || $canEmployees || $canPurchaseOrders || $canMaterials || $canDosage || $canExpenseTemplates || $canEquipments || $canWarehouses || $canStock;
         $showPartenaires = $canSuppliers || $canEmployees;
@@ -110,19 +111,26 @@
             </a>
         </li>
         @endif
-        @if($canAttendances)
-        <li class="menu-item {{ request()->routeIs('attendances.*', 'pointage.*') ? 'active open' : '' }}">
+        @if($canAttendances || $canSalaryPayments)
+        <li class="menu-item {{ request()->routeIs('attendances.*', 'pointage.*', 'salary-payments.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon icon-base bx bx-time-five"></i>
                 <div>Pointage</div>
             </a>
             <ul class="menu-sub">
+                @if($canAttendances)
                 <li class="menu-item {{ request()->routeIs('pointage.*') ? 'active' : '' }}">
                     <a href="{{ route('pointage.kiosque') }}" class="menu-link"><div>Kiosque (Entrée / Sortie)</div></a>
                 </li>
                 <li class="menu-item {{ request()->routeIs('attendances.*') ? 'active' : '' }}">
                     <a href="{{ route('attendances.index') }}" class="menu-link"><div>Suivi & Historique</div></a>
                 </li>
+                @endif
+                @if($canSalaryPayments)
+                <li class="menu-item {{ request()->routeIs('salary-payments.*') ? 'active' : '' }}">
+                    <a href="{{ route('salary-payments.index') }}" class="menu-link"><div>Paiements Salariés</div></a>
+                </li>
+                @endif
             </ul>
         </li>
         @endif

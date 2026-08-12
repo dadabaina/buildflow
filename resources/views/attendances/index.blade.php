@@ -79,6 +79,7 @@
                             <th>Sortie</th>
                             <th class="text-end">Heures</th>
                             <th class="text-end">Jours</th>
+                            <th>Tâche</th>
                             <th>Statut</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -155,13 +156,31 @@
                                 <td>{{ $att->check_out ?? '-' }}</td>
                                 <td class="text-end">{{ $att->hours_worked ? number_format($att->hours_worked, 2, ',', '') . 'h' : '-' }}</td>
                                 <td class="text-end">{{ $att->days_worked ? number_format($att->days_worked, 2, ',', '') . 'j' : '-' }}</td>
+                                <td>
+                                    @if($att->task)
+                                        <span class="badge bg-light text-dark border">{{ $att->task->title }}</span>
+                                    @endif
+                                    @if($att->task_note)
+                                        <div class="small text-muted">{{ Str::limit($att->task_note, 40) }}</div>
+                                    @endif
+                                    @if(!$att->task && !$att->task_note)
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                    @if($att->work_date->isToday())
+                                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" data-bs-toggle="modal" data-bs-target="#taskModal{{ $att->id }}" title="Modifier la tâche du jour">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                    @endif
+                                </td>
                                 <td><span class="badge {{ $att->status_badge_class }}">{{ $att->status_libelle }}</span></td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2">
+                                        @can('attendances.edit')
                                         <a href="{{ route('attendances.edit', $att) }}" class="btn-action-edit" title="Modifier">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        @can('delete', $att)
+                                        @endcan
+                                        @can('attendances.delete')
                                             <form method="POST" action="{{ route('attendances.destroy', $att) }}"
                                                   onsubmit="return confirm('Supprimer ce pointage ?')">
                                                 @csrf @method('DELETE')
@@ -174,7 +193,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="11" class="text-center text-muted py-4">Aucun pointage trouvé.</td></tr>
+                            <tr><td colspan="12" class="text-center text-muted py-4">Aucun pointage trouvé.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -184,6 +203,40 @@
             <div class="card-footer">{{ $attendances->links() }}</div>
         @endif
     </div>
+
+    {{-- Modales de modification de tâche (pointages du jour uniquement) --}}
+    @foreach($attendances as $att)
+        @if($att->work_date->isToday())
+        <div class="modal fade" id="taskModal{{ $att->id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="{{ route('attendances.task.update', $att) }}">
+                        @csrf @method('PATCH')
+                        <div class="modal-header">
+                            <h6 class="modal-title">Tâche — {{ $att->employee?->full_name }} ({{ $att->work_date->format('d/m/Y') }})</h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <label class="form-label small">Tâche</label>
+                            <select name="task_id" class="form-select mb-2">
+                                <option value="">— Aucune / non précisée —</option>
+                                @foreach($att->project->tasks as $t)
+                                    <option value="{{ $t->id }}" @selected($att->task_id == $t->id)>{{ $t->title }}</option>
+                                @endforeach
+                            </select>
+                            <label class="form-label small">Précision libre</label>
+                            <input type="text" name="task_note" class="form-control" maxlength="255" value="{{ $att->task_note }}">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+    @endforeach
 
     {{-- Aperçu photo pointage --}}
     <div class="modal fade" id="photoPreviewModal" tabindex="-1">
