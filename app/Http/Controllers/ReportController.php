@@ -90,6 +90,7 @@ class ReportController extends Controller
         $topProjects = $company->projects()
             ->withSum(['invoices as total_invoiced' => fn($q) => $q->whereIn('status', ['envoyee', 'soldee', 'en_retard'])], 'total_ttc')
             ->withSum(['invoices as total_paid' => fn($q) => $q->where('status', 'soldee')], 'total_ttc')
+            ->withSum(['expenses as expenses_total' => fn($q) => $q->where('status', 'validee')], 'total_amount')
             ->orderByDesc('total_invoiced')
             ->take(10)
             ->get();

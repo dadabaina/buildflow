@@ -121,7 +121,7 @@
                             </div>
                             <div>
                                 <div class="text-muted small fw-medium text-uppercase">Total Dépenses</div>
-                                @php $totalExpenses = $project->expenses->sum('total_amount'); @endphp
+                                @php $totalExpenses = $project->expenses_sum_total_amount ?? 0; @endphp
                                 <div class="fw-bold text-danger fs-5">{{ number_format($totalExpenses, 0, ',', ' ') }} <small class="opacity-50" style="font-size: 0.65rem">MGA</small></div>
                             </div>
                         </div>
@@ -227,7 +227,21 @@
     </div>
 
     {{-- Main Content & Tabs --}}
-    <div x-data="{ activeTab: '{{ request('tab', 'infos') }}', expenseTaskFilter: '' }">
+    <div x-data="{
+        activeTab: '{{ request('tab', 'infos') }}',
+        expenseTaskFilter: '',
+        expensesData: @js($project->expenses->map(fn($e) => ['task_id' => $e->task_id ? (string) $e->task_id : 'none', 'status' => $e->status, 'amount' => (float) $e->total_amount])->values()),
+        expensesFiltered() {
+            return this.expensesData.filter(e => this.expenseTaskFilter === '' || this.expenseTaskFilter === e.task_id);
+        },
+        expensesFilteredTotal() {
+            return this.expensesFiltered().reduce((sum, e) => sum + e.amount, 0);
+        },
+        expensesFilteredValidatedTotal() {
+            return this.expensesFiltered().filter(e => e.status === 'validee').reduce((sum, e) => sum + e.amount, 0);
+        },
+        formatMga(n) { return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' MGA'; },
+    }">
         <div class="card border-0 shadow-sm-app rounded-4 mb-4 bg-white">
             <div class="card-body p-2">
                 <ul id="tour-project-tabs" class="nav nav-pills nav-justified gap-1 flex-wrap project-nav-tabs">
@@ -700,6 +714,24 @@
                                 <tr><td colspan="7" class="text-center py-5 text-muted">Aucune dépense enregistrée.</td></tr>
                                 @endforelse
                             </tbody>
+                            @if($project->expenses->isNotEmpty())
+                            <tfoot>
+                                <tr class="border-top border-2">
+                                    <td colspan="3" class="text-end fw-bold text-dark">Total affiché</td>
+                                    <td class="text-end fw-bold text-dark" x-text="formatMga(expensesFilteredTotal())"></td>
+                                    <td colspan="3"></td>
+                                </tr>
+                                <template x-if="expensesFilteredTotal() !== expensesFilteredValidatedTotal()">
+                                    <tr>
+                                        <td colspan="3" class="text-end small text-muted">
+                                            dont validées <span class="text-muted" style="font-size: 0.7rem">(seul montant comptabilisé dans le total du chantier)</span>
+                                        </td>
+                                        <td class="text-end small text-muted" x-text="formatMga(expensesFilteredValidatedTotal())"></td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </template>
+                            </tfoot>
+                            @endif
                         </table>
                     </div>
                 </x-card>

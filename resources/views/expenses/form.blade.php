@@ -140,11 +140,11 @@
 
                             <div class="col-12">
                                 <label class="form-label">Pièce jointe</label>
-                                <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                                <input type="file" name="receipt" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                                 @isset($expense)
-                                @if($expense->attachment_path)
+                                @if($expense->receipt_path)
                                 <div class="form-text">
-                                    Fichier actuel : <a href="{{ Storage::url($expense->attachment_path) }}" target="_blank">voir</a>
+                                    Fichier actuel : <a href="{{ Storage::url($expense->receipt_path) }}" target="_blank">voir</a>
                                 </div>
                                 @endif
                                 @endisset

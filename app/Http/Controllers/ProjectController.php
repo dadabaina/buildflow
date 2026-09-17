@@ -80,7 +80,7 @@ class ProjectController extends Controller
         $this->authorizeProjectScope($project->id);
         $project->load([
             'client', 'region', 'employees.jobTypes', 'requirements.jobType.category',
-            'expenses'       => fn($q) => $q->with(['category', 'task'])->latest()->take(10),
+            'expenses'       => fn($q) => $q->with(['category', 'task'])->latest(),
             'quotes'         => fn($q) => $q->latest()->take(5),
             'invoices'       => fn($q) => $q->latest()->take(5),
             'amendments'     => fn($q) => $q->latest()->take(10),
@@ -93,6 +93,7 @@ class ProjectController extends Controller
             'warehouses',
             'projectLogs'    => fn($q) => $q->with('user')->latest()->take(50),
         ]);
+        $project->loadSum(['expenses as expenses_sum_total_amount' => fn($q) => $q->where('status', 'validee')], 'total_amount');
 
         // Stock du chantier (mouvements liés soit via le dépôt du chantier, soit taggués project_id)
         $warehouseIds = $project->warehouses->pluck('id')->toArray();

@@ -61,6 +61,11 @@ class Expense extends Model
         return $this->belongsTo(User::class, 'validated_by');
     }
 
+    public function getReferenceAttribute(): string
+    {
+        return 'DEP-' . str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+    }
+
     public function getStatusLibelleAttribute(): string
     {
         return match ($this->status) {

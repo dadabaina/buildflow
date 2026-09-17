@@ -9,6 +9,8 @@ use App\Models\Supplier;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ExpenseController extends Controller
 {
@@ -52,6 +54,10 @@ class ExpenseController extends Controller
     {
         $validated = $this->validateExpense($request);
         $this->authorizeProjectScope($validated['project_id']);
+        unset($validated['receipt']);
+        if ($request->hasFile('receipt')) {
+            $validated['receipt_path'] = $this->uploadReceipt($request->file('receipt'));
+        }
         $validated['created_by'] = Auth::id();
         Auth::user()->company->expenses()->create($validated);
         return redirect()->route('expenses.index')
@@ -91,6 +97,13 @@ class ExpenseController extends Controller
         }
         $validated = $this->validateExpense($request);
         $this->authorizeProjectScope($validated['project_id']);
+        unset($validated['receipt']);
+        if ($request->hasFile('receipt')) {
+            if ($expense->receipt_path) {
+                Storage::disk('public')->delete($expense->receipt_path);
+            }
+            $validated['receipt_path'] = $this->uploadReceipt($request->file('receipt'));
+        }
         $expense->update($validated);
         return redirect()->route('expenses.show', $expense)
             ->with('success', 'Dépense mise à jour.');
@@ -147,6 +160,13 @@ class ExpenseController extends Controller
             'payment_mode'        => ['nullable', 'string', 'max:50'],
             'payment_reference'   => ['nullable', 'string', 'max:100'],
             'notes'               => ['nullable', 'string'],
+            'receipt'             => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
         ]);
+    }
+
+    private function uploadReceipt(\Illuminate\Http\UploadedFile $file): string
+    {
+        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        return $file->storeAs('receipts/' . Auth::user()->company_id, $filename, 'public');
     }
 }

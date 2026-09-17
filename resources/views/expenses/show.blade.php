@@ -62,8 +62,8 @@
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
-                                    @if($expense->attachment_path)
-                                    <li><a class="dropdown-item py-2" href="{{ Storage::url($expense->attachment_path) }}" target="_blank"><i class="bi bi-paperclip me-2 text-muted"></i> Voir justificatif</a></li>
+                                    @if($expense->receipt_path)
+                                    <li><a class="dropdown-item py-2" href="{{ Storage::url($expense->receipt_path) }}" target="_blank"><i class="bi bi-paperclip me-2 text-muted"></i> Voir justificatif</a></li>
                                     @endif
                                     <li><a class="dropdown-item py-2" href="#"><i class="bi bi-printer me-2 text-muted"></i> Imprimer</a></li>
                                     @can('expenses.delete')
@@ -95,7 +95,7 @@
                                 <i class="bi bi-cash fs-5"></i>
                             </div>
                             <div>
-                                <div class="text-muted small fw-medium text-uppercase">Montant Total TTC</div>
+                                <div class="text-muted small fw-medium text-uppercase">Montant Total</div>
                                 <div class="fw-bold text-dark fs-5">{{ number_format($expense->total_amount, 0, ',', ' ') }} <small class="text-muted" style="font-size: 0.65rem">MGA</small></div>
                             </div>
                         </div>
@@ -175,7 +175,7 @@
                     </div>
                     @endif
 
-                    @if($expense->attachment_path)
+                    @if($expense->receipt_path)
                     <div class="col-12">
                         <label class="text-muted small text-uppercase fw-bold mb-2 d-block">Document justificatif</label>
                         <div class="d-flex align-items-center p-3 border rounded-3 bg-white">
@@ -184,7 +184,7 @@
                                 <div class="fw-bold text-dark small mb-0">Pièce jointe scannée</div>
                                 <div class="text-muted" style="font-size: 0.7rem">Format PDF / Image</div>
                             </div>
-                            <a href="{{ Storage::url($expense->attachment_path) }}" target="_blank" class="btn btn-light btn-sm rounded-pill px-3 fw-bold">
+                            <a href="{{ Storage::url($expense->receipt_path) }}" target="_blank" class="btn btn-light btn-sm rounded-pill px-3 fw-bold">
                                 <i class="bi bi-download me-1"></i> Consulter
                             </a>
                         </div>
@@ -208,16 +208,11 @@
                         <span class="fw-bold text-dark">{{ $expense->quantity }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 bg-transparent">
-                        <span class="text-muted">Prix Unitaire HT</span>
-                        <span class="fw-bold text-dark">{{ number_format($expense->amount, 0, ',', ' ') }} MGA</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 bg-transparent">
-                        <span class="text-muted">TVA ({{ $expense->tax_rate }}%)</span>
-                        @php $taxAmount = $expense->total_amount - ($expense->amount * $expense->quantity); @endphp
-                        <span class="fw-bold text-dark">+ {{ number_format($taxAmount, 0, ',', ' ') }} MGA</span>
+                        <span class="text-muted">Prix Unitaire</span>
+                        <span class="fw-bold text-dark">{{ number_format($expense->unit_price, 0, ',', ' ') }} MGA</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3 bg-transparent border-top border-2">
-                        <span class="fw-bold text-dark">Montant Total TTC</span>
+                        <span class="fw-bold text-dark">Montant Total</span>
                         <span class="fw-bold text-primary fs-5">{{ number_format($expense->total_amount, 0, ',', ' ') }} MGA</span>
                     </li>
                 </ul>

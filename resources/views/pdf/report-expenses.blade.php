@@ -22,14 +22,14 @@ tfoot td { font-weight: bold; background: #f3f4f6; }
     <td>{{ $e->project->name ?? '—' }}</td>
     <td>{{ $e->category->name ?? '—' }}</td>
     <td>{{ \Illuminate\Support\Str::limit($e->description, 40) }}</td>
-    <td class="text-right">{{ number_format($e->amount, 0, ',', ' ') }}</td>
+    <td class="text-right">{{ number_format($e->total_amount, 0, ',', ' ') }}</td>
     <td>{{ ucfirst($e->status) }}</td>
 </tr>
 @endforeach
 <tfoot>
 <tr>
     <td colspan="4" class="text-right">Total</td>
-    <td class="text-right">{{ number_format($expenses->sum('amount'), 0, ',', ' ') }}</td>
+    <td class="text-right">{{ number_format($expenses->sum('total_amount'), 0, ',', ' ') }}</td>
     <td></td>
 </tr>
 </tfoot>
