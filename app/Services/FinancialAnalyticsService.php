@@ -25,8 +25,11 @@ class FinancialAnalyticsService
         $budgetConsumption = $contractAmount > 0 ? ($totalExpenses / $contractAmount) * 100 : 0;
         
         // Indicateur de dérive (CPI - Cost Performance Index simplifié)
-        // Si l'avancement physique est inférieur à la consommation budgétaire, on dérive.
-        $driftAlert = ($progressPercent > 0 && $budgetConsumption > $progressPercent);
+        // Dérive si l'avancement physique est inférieur à la consommation budgétaire,
+        // ou si le budget est déjà largement consommé sans qu'aucun avancement n'ait
+        // encore été constaté (cas le plus à risque : argent dépensé, rien de fait).
+        $driftAlert = ($progressPercent > 0 && $budgetConsumption > $progressPercent)
+            || ($progressPercent === 0 && $budgetConsumption > 90);
 
         return [
             'total_expenses' => $totalExpenses,

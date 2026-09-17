@@ -19,10 +19,14 @@
                             <form method="GET" class="d-flex gap-2">
                                 <select name="status" class="form-select border-0 bg-light" onchange="this.form.submit()">
                                     <option value="">Tous les statuts</option>
-                                    <option value="planifie" @selected($status == 'planifie')>Planifiés</option>
+                                    <option value="prospection" @selected($status == 'prospection')>Prospection</option>
+                                    <option value="devis_en_cours" @selected($status == 'devis_en_cours')>Devis en cours</option>
+                                    <option value="devis_envoye" @selected($status == 'devis_envoye')>Devis envoyé</option>
                                     <option value="en_cours" @selected($status == 'en_cours')>En cours</option>
-                                    <option value="termine" @selected($status == 'termine')>Terminés</option>
-                                    <option value="suspendu" @selected($status == 'suspendu')>Suspendus</option>
+                                    <option value="en_pause" @selected($status == 'en_pause')>En pause</option>
+                                    <option value="termine" @selected($status == 'termine')>Terminé</option>
+                                    <option value="cloture" @selected($status == 'cloture')>Clôturé</option>
+                                    <option value="annule" @selected($status == 'annule')>Annulé</option>
                                 </select>
                             </form>
                             <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-outline-danger btn-icon shadow-sm" title="Exporter en PDF">

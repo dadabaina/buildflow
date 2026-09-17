@@ -48,7 +48,13 @@
                             </thead>
                             <tbody>
                                 @php
-                                    $categories = ['Matériaux', 'Main d\'œuvre', 'Matériel', 'Sous-traitance'];
+                                    // Union des postes DBE prévus et des catégories de dépenses réelles
+                                    // (ces deux jeux de libellés ne coïncident pas forcément : les catégories
+                                    // de dépenses sont libres, les postes DBE sont fixés par le devis).
+                                    $categories = array_values(array_unique(array_merge(
+                                        array_keys($analysis['planned']),
+                                        array_keys($analysis['real'])
+                                    )));
                                     $totalPlanned = 0;
                                     $totalReal = 0;
                                 @endphp
