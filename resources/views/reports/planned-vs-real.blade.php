@@ -110,10 +110,31 @@
                     <h6 class="mb-0 fw-bold">Interprétation de l'analyse</h6>
                 </div>
                 <div class="card-body">
-                    @if($totalPlanned == 0)
-                        <div class="alert alert-info border-0 mb-0">
+                    @php
+                        // Quand aucun dosage (DBE) n'a été renseigné sur le devis, la comparaison
+                        // poste par poste est vide (0 Ar) : on retombe alors sur le montant global
+                        // du devis accepté (+ avenants) comme référence de "prévu".
+                        $usingGlobalFallback = $totalPlanned == 0;
+                        $globalPlanned = $usingGlobalFallback ? (float) $project->total_market_amount : $totalPlanned;
+                        $globalDiff = $globalPlanned - $totalReal;
+                    @endphp
+                    @if($usingGlobalFallback && $globalPlanned == 0)
+                        <div class="alert alert-secondary border-0 mb-0">
                             <i class="bx bx-info-circle me-2"></i>
-                            <strong>Note :</strong> Aucun dosage n'a été utilisé pour le devis de ce chantier. La comparaison se base sur les montants globaux.
+                            <strong>Note :</strong> Aucun montant prévisionnel disponible pour ce chantier (ni dosage DBE, ni devis accepté avec montant). La comparaison n'est pas possible.
+                        </div>
+                    @elseif($usingGlobalFallback)
+                        <div class="alert alert-{{ $globalDiff < 0 ? 'danger' : 'info' }} border-0 mb-0">
+                            <i class="bx {{ $globalDiff < 0 ? 'bx-trending-down' : 'bx-info-circle' }} me-2"></i>
+                            <strong>Note :</strong> Aucun dosage (DBE) n'a été utilisé sur le devis de ce chantier, la comparaison par poste ci-dessus n'est donc pas disponible.
+                            Sur la base du montant global du devis, vos dépenses réelles représentent
+                            <strong>{{ number_format($globalPlanned > 0 ? ($totalReal / $globalPlanned) * 100 : 0, 1) }}%</strong>
+                            du prévu ({{ number_format($totalReal, 0, ',', ' ') }} Ar / {{ number_format($globalPlanned, 0, ',', ' ') }} Ar)
+                            @if($globalDiff < 0)
+                                — dépassement de {{ number_format(abs($globalDiff), 0, ',', ' ') }} Ar.
+                            @else
+                                , marge restante estimée à {{ number_format($globalDiff, 0, ',', ' ') }} Ar.
+                            @endif
                         </div>
                     @elseif($totalReal > $totalPlanned)
                         <div class="alert alert-danger border-0 mb-0">
